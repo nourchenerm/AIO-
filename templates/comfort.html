@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Comfort</title>	
+    <link rel="stylesheet" type="text/css" href="../static/css/style.min.css">
+	<script src="../static/js/jquery-3.5.1.min.js"></script>
+    <script src="../static/js/socket.io.min.js"></script>
+    <script src="../static/js/comfort.js"></script>
+	<script  src="../static/js/Chart.min.js"> </script>
+		<script src="../static/js/moment.min.js"></script>
+</head>
+
+<body class="boxe0_comfort">
+
+	<audio id="Respiration" src="../static/Audio-Asana/Respiration.mp3" preload="auto"></audio>
+	<audio id="étirement_cambrer" src="../static/Audio-Asana/Excercice d'étirement cambrer.mp3" preload="auto"></audio>
+	<audio id="gainage" src="../static/Audio-Asana/Exercice de gainage.mp3" preload="auto"></audio>
+	<audio id="étirement" src="../static/Audio-Asana/Exercice d'étirement.mp3" preload="auto"></audio>
+	<audio id="Start_Reprendre" src="../static/Audio-Asana/Start&Reprendre.mp3" preload="auto" loop="false"></audio>
+    <nav style="margin: unset;" >
+        <div class="nav-item">
+            <ul class="navbar-nav mr-auto">
+				<li class="nav-item">
+                    <a class="navbar-brand nav-hmi" href="/">AIO Global View</a>
+                </li>
+				<li class="nav-item">
+                    <a class="nav-link " href="/hmi">HMI</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link " href="seat_status">OCS</a>
+                </li>
+                <li class="nav-item ">
+                    <a class="nav-link nav-monitoring" style="cursor: pointer">ASANA</a>
+                </li>
+				<!-- <li class="nav-item active">
+					<a class="nav-link" href="unsafe_posture">Unsafe Posture</a>
+				</li> -->
+                <li class="nav-item">
+                    <a class="nav-link " href="chart">Charts</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+    <div class="boxe1_comfort">
+		<div class="hover_bkgr_fricc">
+			<span class="helper"></span>
+			<div>
+				<div class="popupCloseButton d-none" id="ClosButton">&times;</div>
+				<p id="popuptText">Seat is EMPTY<br />can't start ASANA</p>
+				<button class="btn btn-primary  btn-space d-none" id="btn-p1">Profile 1</button>
+				<button class="btn btn-primary  btn-space d-none" id="btn-p2">Profile 2</button>
+				<button class="btn btn-primary  btn-space d-none" id="btn-p3">Profile 3</button>
+				<button class="btn btn-primary  btn-space d-none" id="btn-p4">Profile 4</button>
+			</div>
+		</div>
+		<div class="hover_bkgr_fricc_time">
+			<span class="helper"></span>
+			<div>
+				<label for="appt">ASANA_Coach Duration <input type="time" id="appt" name="appt"  min="00:00" max="12:00" required> 
+					<button class="btn btn-primary  btn-space d-none" id="validate_time">SET</button>
+				</label>
+			</div>
+		</div>
+        <div class="temps">
+		
+				<button class="btn-rtm" id="ASANA_Coach" >ASANA_Coach</button>
+           <span class="temps_text">Temps de coaching</span><span class="temps_valeur" id="time">00:00</span>
+		   <ul class="list-group list-group-flush">
+				<button class="btn-pause " id="pause">PAUSE</button>
+				<button class="btn-pause" id="resume" style="display : none">RESUME</button>
+			</ul>
+        </div>
+        <div class="score_confort">
+            <svg viewBox="0 0 36 36" class="circle-svg">
+			  <path class="around"  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>  
+			  <path class="percent" id="pourcentage_cercle" stroke-dasharray="80, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
+			  <text x="18" y="14" id="pourcentage_text"  text-anchor="middle" dy="7" font-size="20">80</text>  
+			</svg>
+			<span class="score_confort_text">Score de confort</span>
+        </div>
+        <div class="evolution_graph">
+            <span class="evolution_text">Evolution du Score de confort</span>
+			<div class="confort_row row justify-content-center position-relative" style="margin-right: -30px;">
+				<canvas id="backSensorsChart" role="img" ></canvas>
+			</div>
+			<button type="button" class="btn btn-primary Confort_Score" id="id_Confort_Score" class="btn ">Confort Score</button>
+			<button type="button" class="btn btn-primary Confort_Time" id="id_Confort_Time" class="btn ">Temps</button>
+			<button type="button" class="btn btn-primary Confort_Fixed" id="id_Confort_Fixed" class="btn ">Immobilité </button>
+			<button type="button" class="btn btn-primary Confort_Thorax" id="id_Confort_Thorax" class="btn ">Dos courbé</button>
+			<button type="button" class="btn btn-primary Confort_Pelvis" id="id_Confort_Pelvis" class="btn ">Bassin avancé</button>
+        </div><span class="postion_titre">Tendances au cours des 10 dernières minutes</span>
+        <div class="postion_box_bassin">
+            <div class="position"></div><span class="postion_text">Bassin avancé</span>
+            <div class="position_image " style="background-image: url('../static/img/Bassin_avance.png')";></div>
+            <div class="Progress_Bar">
+				<div class="Progress_Bar_res" id="Bassin_Bar"></div>
+			</div>
+        </div>
+        <div class="postion_box_fix">
+            <div class="position"></div><span class="postion_text">Immobilité </span>
+            <div class="position_image"style="background-image: url('../static/img/Position_fixe.png')" ></div>
+            <div class="Progress_Bar">
+				<div class="Progress_Bar_res" id="Fix_Bar"></div>
+			</div>
+        </div>
+        <div class="postion_box_dos">
+            <div class="position_image"></div>
+            <div class="position"></div><span class="postion_text">Dos courbé</span>			
+            <div class="Progress_Bar">
+				<div class="Progress_Bar_res" id="Dos_Bar"></div>
+			</div>
+        </div>
+    </div>
+</body>
+
+</html> <br /><br />

@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=0.67">
+    <link rel="stylesheet" href="../static/css/style.css" />
+    <link rel="stylesheet" href="../static/css/bootstrap.css" />
+    <script src="../static/js/moment.min.js"></script>
+    <script src="../static/js/jquery-3.5.1.min.js"></script>
+    <script src="../static/js/socket.io.min.js"></script>
+    <script  src="../static/js/Chart.min.js"> </script>
+   <script src="../static/js/global_view.js"></script>
+   <script src="../static/js/socket_live.js"></script>
+    <title>Postural Monitoring</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        .container_aio_global {
+            display: flex;
+            height: 100vh;
+            border: 10px solid #0927D5;
+            border-bottom-width: 58px;
+            flex-direction: row;
+        }
+        
+        .section {
+            border: 1px solid #ccc;
+            padding: 0px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        /* section2 layout */
+        .section2 {
+            flex: 1.8;
+            box-sizing: border-box;
+            border-bottom-width: 0px;
+            display: flex;
+            flex-direction: column;
+        }
+        .section2-inner {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            border: 4px solid #0927D5;
+            border-top-width: 0px;
+            background-image: url(../static/img/backgrounf_chart.png);
+            background-size: 100%;
+            background-repeat: no-repeat;
+            background-position: center 25%;
+        }
+        /* TOP: Back + Cushion side by side */
+        .courbe {
+            flex: 1.1;
+            min-height: 0;
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+            border-bottom: 2px solid #0927D5;
+        }
+        .courbe_1 {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid #0927D5;
+            padding: 4px 2px 2px;
+        }
+        .courbe_1 .chart-label {
+            font-size: 10px;
+            font-weight: bold;
+            color: #0927D5;
+            font-family: Arial, sans-serif;
+            margin-bottom: 2px;
+        }
+        .courbe_1 canvas {
+    width: 100% !important;
+    height: 300px !important;
+}
+        .courbe_3 {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 2px 2px;
+        }
+        .courbe_3 .chart-label {
+            font-size: 10px;
+            font-weight: bold;
+            color: #0927D5;
+            font-family: Arial, sans-serif;
+            margin-bottom: 2px;
+        }
+        .courbe_3 canvas { width: 100% !important; max-height: 130px; }
+        /* BOTTOM: Data Analysis */
+        .analysis-panel {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 4px 10px 4px;
+            background: rgba(255,255,255,0.82);
+        }
+        .analysis-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            flex-shrink: 0;
+        }
+        .analysis-title {
+            color: #0927D5;
+            font-family: "Arial Black", sans-serif;
+            font-size: 12px;
+            font-weight: bold;
+            font-style: italic;
+        }
+        .analysis-legend {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .leg-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            color: #333;
+            font-family: Arial, sans-serif;
+        }
+        .leg-swatch {
+            width: 20px;
+            height: 3px;
+            border-radius: 2px;
+        }
+        .analysis-chart-wrap {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+        }
+        
+        .section1 {
+            flex: 1.5;
+            background-color: #fff;
+            background-image: url(../static/img/seat.png);
+            background-size: 55%;
+            background-repeat: no-repeat;
+            background-position: center 61%;
+        }
+        
+
+        .section3 {
+            flex: 1.5;
+            background-color: #fff;
+        }
+        .carreau{
+            background-color: #0927D5;
+            width : 100%;
+            height:17%;
+        }
+        section-messages {
+            width: 532px;
+            height: auto;
+            margin: 0 auto 0 auto;
+            background: hsl(120, 20%, 96%);
+            object-fit: cover;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .section-messages {
+            position: relative;
+            top: 52%;
+            left: 2%;
+        }
+        .status-message {
+            color: #0927D5;
+            font-size: 38px;            
+            font-family: "Arial Black", sans-serif;
+            font-style: italic;
+            font-weight: bold;
+            text-align: center;
+            justify-content: center;
+        } 
+        .status-message-classification{
+            color: #0927D5;
+            font-size: 28px;
+            font-family: "Arial Black", sans-serif;
+            font-style: italic;
+            font-weight: bold;
+            text-align: center;
+        }         
+        .asana-message {
+            color: #0927D5;
+            font-size: 38px;            
+            font-family: "Arial Black", sans-serif;
+            font-style: italic;
+            font-weight: bold;
+            text-align: center;
+            justify-content: center;
+        }
+        img.asana-img {
+            position: absolute;
+            top: 38%;
+            left: 75%;
+            width: 260px;
+            height: 345px;
+        }
+        .asana-section-messages {
+            position: relative;
+            top: 68%;
+            right: 0%;
+        }
+        img.bas-droite {
+            position: relative;
+            top: 16%;
+            width: 41%;
+            height: 62%;
+            right: 7%;
+        }
+        img.ocs_logo {
+            position: absolute;
+            width: 20%;
+            top: 23%;
+            left: 3%;
+        }
+        img.asna_logo {
+            position: absolute;
+            top: 8%;
+            right: 3%;
+        }
+        button.btn.btn-rtm {
+            position: absolute;
+            top: 23%;
+            right: 2%;
+            width: 24%;
+        }
+        button.btn.btn-primary.btn-rtm {
+            position: absolute;
+            top: 23%;
+            right: 7%;
+            width: 13%;
+        }
+        img.all_in_one {
+            width: 14%;
+            position: relative;
+            top: 8%;
+            left: 65%;
+        }
+        .row.button-chart.position-relative {
+            position: relative;
+            left: 27%;
+        }
+        img.seat_picture {
+            height: 40%;
+            position: relative;
+            top: 22%;
+            left: 27%;
+        }
+        h1 {
+            color: #fff;
+            font-size: 80px;
+            text-align: center;
+            position: relative;
+            top: 17%;
+        }
+        img.btn-img {
+            width: 100%;
+        }
+
+        .status {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            margin: auto;
+            position: relative;
+            top: 39%;
+            left: -5%;
+        }
+        .active_seat {
+            animation: ring 1s infinite;
+            background-color: rgb(29 164 39);
+        }
+
+        @keyframes ring {
+            0% { opacity: 1; transform: scale(0.2, 0.2); }
+            50% { opacity: 0.5; transform: scale(0.6, 0.6); }
+            100% { opacity: 0; transform: scale(1, 1); }
+        }
+
+        /* ===== AJOUT section3 prediction ===== */
+        .prediction-zone {
+            position: relative;
+            top: 18%;
+            padding: 0 18px;
+        }
+
+        .predict-logo-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .predict-logo-row img {
+            height: 70px;
+        }
+
+        .predict-logo-row .predict-title {
+            color: #0927D5;
+            font-size: 22px;
+            font-family: "Arial Black", sans-serif;
+            font-style: italic;
+            font-weight: bold;
+            line-height: 1.2;
+        }
+
+        .predict-logo-row .predict-subtitle {
+            color: #0927D5;
+            font-size: 13px;
+            font-family: Arial, sans-serif;
+        }
+
+        .weight-input-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .weight-input-row label {
+            color: #0927D5;
+            font-family: "Arial Black", sans-serif;
+            font-style: italic;
+            font-weight: bold;
+            font-size: 16px;
+            white-space: nowrap;
+        }
+
+        .weight-input-row input {
+            width: 90px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #0927D5;
+            border: 2px solid #0927D5;
+            border-radius: 6px;
+            padding: 4px 10px;
+            text-align: center;
+            outline: none;
+        }
+
+        .weight-input-row input:focus {
+            border-color: #0614a0;
+            box-shadow: 0 0 0 2px rgba(9,39,213,0.15);
+        }
+
+        .weight-input-row .unit {
+            color: #0927D5;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .predict-buttons-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .btn-weight-predict {
+            flex: 1;
+            background-color: #0927D5;
+            color: #fff;
+            border: none;
+            border-radius: 7px;
+            font-size: 14px;
+            font-family: "Arial Black", sans-serif;
+            font-weight: bold;
+            padding: 10px 6px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .btn-weight-predict:hover {
+            background-color: #0614a0;
+        }
+
+        .btn-ocs-predict {
+            flex: 1;
+            background-color: #fff;
+            color: #0927D5;
+            border: 2.5px solid #0927D5;
+            border-radius: 7px;
+            font-size: 14px;
+            font-family: "Arial Black", sans-serif;
+            font-weight: bold;
+            padding: 10px 6px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .btn-ocs-predict:hover {
+            background-color: #0927D5;
+            color: #fff;
+        }
+
+        /* Tableau résultats */
+        .predict-results {
+            display: none;
+        }
+
+        .predict-results-title {
+            color: #0927D5;
+            font-family: "Arial Black", sans-serif;
+            font-style: italic;
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .predict-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .predict-table th {
+            background-color: #0927D5;
+            color: #fff;
+            padding: 6px 10px;
+            text-align: left;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+
+        .predict-table td {
+            padding: 5px 10px;
+            border-bottom: 1px solid #c5cbf0;
+            color: #222;
+        }
+
+        .predict-table tr:nth-child(even) td {
+            background-color: #eef0ff;
+        }
+
+        .predict-table .td-weight {
+            font-weight: bold;
+            color: #0927D5;
+            font-size: 14px;
+        }
+
+        .ocs-result-row {
+            display: none;
+            margin-top: 14px;
+            background: #eef0ff;
+            border: 2px solid #0927D5;
+            border-radius: 8px;
+            padding: 10px 14px;
+            text-align: center;
+        }
+
+        .ocs-result-label {
+            color: #0927D5;
+            font-family: "Arial Black", sans-serif;
+            font-style: italic;
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .ocs-result-value {
+            color: #0927D5;
+            font-family: "Arial Black", sans-serif;
+            font-size: 20px;
+            font-weight: bold;
+            display: block;
+            margin-top: 4px;
+        }
+
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #c5cbf0;
+            border-top-color: #0927D5;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin: 0 auto 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="hover_bkgr_fricc">
+        <span class="helper"></span>
+        <div>
+            <div class="popupCloseButton">&times;</div>
+            <p id="popuptText">Seat is EMPTY<br />can't start ASANA</p>
+        </div>
+    </div>
+    <nav class="navbar-nav-scroll navbar-dark bg-dark">
+        <ul class="navbar-nav mr-auto flex-row">
+            <li class="nav-item active">
+                <a class="navbar-brand nav-hmi" href="/">AIO Global View</a>
+            </li>
+            <li class="nav-item active">
+                <a class="navbar-brand nav-hmi" href="hmi">HMI</a>
+            </li>
+            <li class="nav-item active">
+                <a class="nav-link" href="seat_status">OCS</a>
+            </li>  
+            <li class="nav-item active">
+                <a href="#" class="nav-link nav-monitoring" >ASANA<span class="sr-only">(current)</span></a>
+            </li>
+            <li class="nav-item active">
+                <a class="nav-link" href="chart">Charts</a>
+            </li>						
+        </ul>
+    </nav>
+    <div class="container_aio_global">
+
+        <!-- ===== SECTION 1 : OCS — inchangée ===== -->
+        <div class="section1">
+            <div class="carreau">
+                <h1>Safety</h1>
+            </div>            
+            <img class="ocs_logo" src="../static/img/ocs_logo_v2.PNG" > 
+            <div class="status inactive_seat"></div>
+            <div class="section-messages">
+                <h2 class="section-title status-message-classification"></h2>
+                <h2 class="section-title status-message">Seat is Empty</h2>
+            </div>
+        </div>
+
+        <!-- ===== SECTION 2 : Back+Cushion TOP | Data Analysis BOTTOM ===== -->
+        <div class="section2">
+            <div class="carreau" style="background-color:#fff;border:10px solid #0927D5;border-top-width:0px;">
+                <img class="all_in_one" src="../static/img/all_in_one.png">
+                <img class="bas-droite" src="../static/img/logo_furvia.jpg">
+            </div>
+            <div class="section2-inner">
+
+                <!-- TOP : Back & Cushion côte à côte -->
+                <div class="courbe">
+                    <div class="courbe_1">
+                        <span class="chart-label">Back Sensors</span>
+                        <canvas id="backSensorsChart" aria-label="Back Sensors Chart" role="img"></canvas>
+                    </div>
+                   <div class="courbe_3">
+                        <span class="chart-label">Cushion Sensors</span>
+                        <canvas id="cushionSensorsChart" aria-label="Cushion Sensors Chart" role="img"></canvas>
+                    </div>
+                </div>
+
+                <!-- BOTTOM : Data Analysis -->
+                <div class="analysis-panel">
+                    <div class="analysis-header">
+                        <span class="analysis-title">Data Analysis — Weight Comparison</span>
+                        <div class="analysis-legend">
+                            <span class="leg-item">
+                                <span class="leg-swatch" style="background:#1a7abf;"></span>
+                                Real weight ±5 kg
+                            </span>
+                            <span class="leg-item">
+                                <span class="leg-swatch" style="background:#e8a020;"></span>
+                                Dataset mean ±5 kg
+                            </span>
+                            <span class="leg-item">
+                                <span class="leg-swatch" style="background:#d42020;"></span>
+                                Predicted ±5 kg
+                            </span>
+                        </div>
+                    </div>
+                    <div class="analysis-chart-wrap">
+                        <canvas id="weightAnalysisChart" role="img" aria-label="Data Analysis weight comparison chart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ===== SECTION 3 : Prediction (remplace Comfort/Asana) ===== -->
+        <div class="section3">
+            <div class="carreau">
+                <h1>Comfort</h1>
+            </div>
+
+            <div class="prediction-zone">
+
+                <!-- Logo + titre (même style qu'Asana Coach) -->
+                <div class="predict-logo-row">
+                    <img src="../static/img/asna_button.PNG" alt="predict logo">
+                    <div>
+                        <div class="predict-title">Weight Predictor&#174;</div>
+                        <div class="predict-subtitle">Your personal weight assistant</div>
+                    </div>
+                </div>
+
+                <!-- Champ poids réel -->
+                <div class="weight-input-row">
+                    <label>Real Weight :</label>
+                    <input type="number" id="realWeightInput" placeholder="kg" min="1" max="300">
+                    <span class="unit">kg</span>
+                </div>
+
+                <!-- 2 boutons -->
+                <div class="predict-buttons-row">
+                    <button class="btn-weight-predict" id="btnWeightPredict" onclick="runWeightPredict()">
+                        ⚖ Weight Predict
+                    </button>
+                    <button class="btn-ocs-predict" id="btnOcsPredict" onclick="runOcsPredict()">
+                        🔎 OCS Predict
+                    </button>
+                </div>
+
+                <!-- Spinner chargement -->
+                <div class="spinner" id="spinner"></div>
+
+                <!-- Tableau résultats poids -->
+                <div class="predict-results" id="predictResults">
+                    <div class="predict-results-title">Predicted Weight — by Model</div>
+                    <table class="predict-table">
+                        <thead>
+                            <tr>
+                                <th>Model</th>
+                                <th>Predicted (kg)</th>
+                                <th>Error (kg)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="predictTableBody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Résultat OCS -->
+                <div class="ocs-result-row" id="ocsResultRow">
+                    <span class="ocs-result-label">OCS Classification :</span>
+                    <span class="ocs-result-value" id="ocsResultValue">—</span>
+                </div>
+
+            </div>
+        </div>    
+        
+    </div>
+
+    <script>
+    /* =========================================================
+       Weight Predict — appel backend
+       Endpoint attendu : POST /api/predict_weight
+       Body JSON        : { "real_weight": <float> }
+       Réponse attendue : { "results": [ {"model": "RF", "predicted": 72.3}, ... ] }
+       ========================================================= */
+    function runWeightPredict() {
+
+        var realW = parseFloat(document.getElementById('realWeightInput').value);
+
+        if (!realW || realW <= 0) {
+            alert('Please enter a valid real weight (kg).');
+            return;
+        }
+
+        // Sauvegarder le poids réel pour calculer l'erreur après
+        window.currentRealWeight = realW;
+
+        // UI
+        document.getElementById('spinner').style.display = 'block';
+        document.getElementById('predictResults').style.display = 'none';
+        document.getElementById('ocsResultRow').style.display = 'none';
+
+        // Demande au backend de lancer la prédiction
+        socket.emit('start_prediction');
+}
+
+    /* =========================================================
+       OCS Predict — appel backend
+       Endpoint attendu : POST /api/predict_ocs
+       Body JSON        : { "real_weight": <float> }
+       Réponse attendue : { "ocs_class": "Adult ON (>=50kg)" }
+       ========================================================= */
+    /* ===== Data Analysis Chart ===== */
+    /* Demo data — replace realWeightVal / predictedVal / datasetMeanVal
+       via socket events from your backend                              */
+    var analysisLabels = ['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10'];
+
+    var realW    = [68, 70, 71, 69, 72, 73, 71, 70, 72, 72];
+    var meanD    = [65, 66, 67, 66, 68, 67, 66, 67, 68, 68];
+    var predW    = [67, 69, 70, 68, 71, 72, 70, 69, 71, 71];
+
+    var realUp   = realW.map(function(v){ return v + 5; });
+    var realDn   = realW.map(function(v){ return v - 5; });
+    var meanUp   = meanD.map(function(v){ return v + 5; });
+    var meanDn   = meanD.map(function(v){ return v - 5; });
+    var predUp   = predW.map(function(v){ return v + 5; });
+    var predDn   = predW.map(function(v){ return v - 5; });
+
+    var aCtx = document.getElementById('weightAnalysisChart').getContext('2d');
+    window.weightAnalysisChart = new Chart(aCtx, {
+        type: 'line',
+        data: {
+            labels: analysisLabels,
+            datasets: [
+                /* --- Real weight band fill --- */
+                { label: 'Real +5', data: realUp,
+                  borderColor: 'rgba(26,122,191,0)', backgroundColor: 'rgba(26,122,191,0.15)',
+                  borderWidth: 0, pointRadius: 0, fill: '+1', tension: 0.3 },
+                { label: 'Real -5', data: realDn,
+                  borderColor: 'rgba(26,122,191,0)', backgroundColor: 'rgba(26,122,191,0.15)',
+                  borderWidth: 0, pointRadius: 0, fill: false, tension: 0.3 },
+                /* --- Real weight main line --- */
+                { label: 'Real weight', data: realW,
+                  borderColor: '#1a7abf', backgroundColor: 'transparent',
+                  borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: '#1a7abf',
+                  fill: false, tension: 0.3 },
+
+                /* --- Dataset mean band fill --- */
+                { label: 'Mean +5', data: meanUp,
+                  borderColor: 'rgba(232,160,32,0)', backgroundColor: 'rgba(232,160,32,0.15)',
+                  borderWidth: 0, pointRadius: 0, fill: '+1', tension: 0.3 },
+                { label: 'Mean -5', data: meanDn,
+                  borderColor: 'rgba(232,160,32,0)', backgroundColor: 'rgba(232,160,32,0.15)',
+                  borderWidth: 0, pointRadius: 0, fill: false, tension: 0.3 },
+                /* --- Dataset mean main line --- */
+                { label: 'Dataset mean', data: meanD,
+                  borderColor: '#e8a020', backgroundColor: 'transparent',
+                  borderWidth: 2, borderDash: [7,4],
+                  pointRadius: 3, pointStyle: 'rect', pointBackgroundColor: '#e8a020',
+                  fill: false, tension: 0.3 },
+
+                /* --- Predicted band fill --- */
+                { label: 'Pred +5', data: predUp,
+                  borderColor: 'rgba(212,32,32,0)', backgroundColor: 'rgba(212,32,32,0.13)',
+                  borderWidth: 0, pointRadius: 0, fill: '+1', tension: 0.3 },
+                { label: 'Pred -5', data: predDn,
+                  borderColor: 'rgba(212,32,32,0)', backgroundColor: 'rgba(212,32,32,0.13)',
+                  borderWidth: 0, pointRadius: 0, fill: false, tension: 0.3 },
+                /* --- Predicted main line --- */
+                { label: 'Predicted', data: predW,
+                  borderColor: '#d42020', backgroundColor: 'transparent',
+                  borderWidth: 2.5, borderDash: [4,3],
+                  pointRadius: 4, pointStyle: 'triangle', pointBackgroundColor: '#d42020',
+                  fill: false, tension: 0.3 }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            var hidden = ['Real +5','Real -5','Mean +5','Mean -5','Pred +5','Pred -5'];
+                            if (hidden.indexOf(ctx.dataset.label) !== -1) return null;
+                            return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + ' kg';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    title: { display: true, text: 'Weight (kg)', font: { size: 10 }, color: '#0927D5' },
+                    ticks: { font: { size: 9 }, color: '#0927D5' },
+                    grid: { color: 'rgba(9,39,213,0.08)' }
+                },
+                x: {
+                    title: { display: true, text: 'Sample', font: { size: 10 }, color: '#0927D5' },
+                    ticks: { font: { size: 9 }, color: '#0927D5' },
+                    grid: { color: 'rgba(9,39,213,0.08)' }
+                }
+            }
+        }
+    });
+
+    /* Call this from your socket/backend to update the analysis chart:
+       updateAnalysisChart(realWeightArray, datasetMeanArray, predictedArray)  */
+    window.updateAnalysisChart = function(realArr, meanArr, predArr) {
+        var c = window.weightAnalysisChart;
+        var labels = realArr.map(function(_,i){ return 'S'+(i+1); });
+        c.data.labels = labels;
+        c.data.datasets[0].data = realArr.map(function(v){ return v+5; });
+        c.data.datasets[1].data = realArr.map(function(v){ return v-5; });
+        c.data.datasets[2].data = realArr;
+        c.data.datasets[3].data = meanArr.map(function(v){ return v+5; });
+        c.data.datasets[4].data = meanArr.map(function(v){ return v-5; });
+        c.data.datasets[5].data = meanArr;
+        c.data.datasets[6].data = predArr.map(function(v){ return v+5; });
+        c.data.datasets[7].data = predArr.map(function(v){ return v-5; });
+        c.data.datasets[8].data = predArr;
+        c.update();
+    };
+
+    function runOcsPredict() {
+        var realW = parseFloat(document.getElementById('realWeightInput').value);
+        if (!realW || realW <= 0) {
+            alert('Please enter a valid real weight (kg).');
+            return;
+        }
+
+        document.getElementById('spinner').style.display = 'block';
+        document.getElementById('ocsResultRow').style.display = 'none';
+        document.getElementById('predictResults').style.display = 'none';
+
+        fetch('/api/predict_ocs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ real_weight: realW })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('ocsResultValue').textContent = data.ocs_class;
+            document.getElementById('ocsResultRow').style.display = 'block';
+        })
+        .catch(function(err) {
+            document.getElementById('spinner').style.display = 'none';
+            alert('Backend error: ' + err);
+        });
+    }
+    </script>
+</body>
+</html>

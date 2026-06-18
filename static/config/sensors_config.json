@@ -1,0 +1,24 @@
+{
+  "sensor_mapping": {
+    "1": 0,
+    "2": 1,
+    "3": 2,
+    "4": 3,
+    "5": 4,
+    "6": 5
+  },
+  "backrest_sensors": [],
+  "cushion_sensors": [1, 2, 3, 4, 5, 6],
+  "visibleSensors": {
+    "backrest": [],
+    "cushion": [1, 2, 3, 4, 5, 6]
+  },
+  "sensor_info": {
+    "1": {"name": "C1 - Cushion Front Right", "type": "cushion", "color": "rgb(0, 168, 255)"},
+    "2": {"name": "C2 - Cushion Bugles Left", "type": "cushion", "color": "rgb(165, 177, 194)"},
+    "3": {"name": "C3 - Cushion Rear Right", "type": "cushion", "color": "rgb(46, 213, 115)"},
+    "4": {"name": "C4 - Cushion Front Left", "type": "cushion", "color": "rgb(235, 59, 90)"},
+    "5": {"name": "C5 - Cushion Rear Left", "type": "cushion", "color": "rgb(15, 185, 177)"},
+    "6": {"name": "C6 - Cushion Bugles Right", "type": "cushion", "color": "rgb(136, 84, 208)"}
+  }
+}

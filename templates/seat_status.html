@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Postural Monitoring</title>
+    <link rel="stylesheet" type="text/css" href="../static/css/style.min.css">
+		<script src="../static/js/jquery-3.5.1.min.js"></script>
+</head>
+
+<body class="boxe0">
+    <!--Boite globale-->
+	
+    <nav>
+        <div class="nav-item">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item">
+                    <a class="navbar-brand nav-hmi" href="/">AIO Global View</a>
+                </li>
+				<li class="nav-item">
+                    <a class="nav-link " href="/hmi">HMI</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link " href="seat_status">OCS</a>
+                </li>
+                <li class="nav-item ">
+                    <a class="nav-link nav-monitoring" href="monitoring" style="cursor: pointer">ASANA</a>
+                </li>
+                <!-- <li class="nav-item ">
+                    <a class="nav-link" href="unsafe_posture">Unsafe Posture</a>
+                </li> -->
+                <li class="nav-item">
+                    <a class="nav-link " href="chart">Charts</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+    <div class="boxe1">
+        <div class="boxe2">
+            <div class="logofas"></div>
+            <!--<div class="logojd"></div>-->
+        </div>
+        <div class="seat">
+            <div class="container text-center">
+                <div class="status inactive"></div>
+            </div>
+			<div class="hover_bkgr_fricc">
+				<span class="helper"></span>
+				<div>
+					<div class="popupCloseButton">&times;</div>
+					<p>Seat is EMPTY<br />can't start ASANA</p>
+				</div>
+			</div>
+        </div>
+        <div class="section-messages">
+            <h2 class="section-title status-message">Seat is Empty</h2>
+        </div>
+    </div>
+    <script src="../static/js/socket.io.min.js"></script>
+    <script src="../static/js/seat_status.js"></script>
+</body>
+
+</html>

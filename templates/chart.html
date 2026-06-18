@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=0.90">
+        <link rel="stylesheet" href="../static/css/style.css" />
+		<!-- <link rel="stylesheet" href="../static/css/bootstrap.css" /> -->
+		<script src="../static/js/moment.min.js"></script>
+		<script src="../static/js/jquery-3.5.1.min.js"></script>
+		<script src="../static/js/socket.io.min.js"></script>
+        <script  src="../static/js/Chart.min.js"> </script>
+        <script  src="../static/js/chart.js"> </script>
+        <script>
+            // Generate sensor buttons dynamically
+            window.addEventListener("DOMContentLoaded", (event) => {
+                generateSensorButtons();
+            });
+            
+            function generateSensorButtons() {
+                fetch('../static/config/sensors_config.json')
+                    .then(response => response.json())
+                    .then(config => {
+                        const container = document.getElementById('sensorButtonsContainer');
+                        if (!container) return;
+                        
+                        // Get visible sensors list, fallback to all if not specified
+                        const visibleSensors = config.visibleSensors || {
+                            backrest: config.backrest_sensors || [],
+                            cushion: config.cushion_sensors || []
+                        };
+                        
+                        // Create separate sections for backrest and cushion sensors
+                        const backrestSection = document.createElement('div');
+                        backrestSection.className = 'sensor-section-backrest';
+                        
+                        const cushionSection = document.createElement('div');
+                        cushionSection.className = 'sensor-section-cushion';
+                        
+                        // Generate buttons for each sensor
+                        Object.keys(config.sensor_info)
+                            .map(id => ({ id: Number(id), info: config.sensor_info[id] }))
+                            .sort((a, b) => a.id - b.id)
+                            .forEach(({ id, info }) => {
+                                // Check if sensor is visible
+                                const isBackrestVisible = info.type === 'backrest' && visibleSensors.backrest.includes(id);
+                                const isCushionVisible = info.type === 'cushion' && visibleSensors.cushion.includes(id);
+                                
+                                if (!isBackrestVisible && !isCushionVisible) return;
+                                
+                                const buttonDiv = document.createElement('div');
+                                buttonDiv.className = 'sensor-button-wrapper';
+                                
+                                const button = document.createElement('button');
+                                button.type = 'button';
+                                button.id = `btn-sensor-${id}`;
+                                button.className = `btn-chart btn-sensor-${id} btn-sensor-color`;
+                                button.style.backgroundColor = info.color || 'rgba(100,100,100,1)';
+                                button.title = info.name;
+                                button.textContent = `C${id}`;
+                                
+                                const label = document.createElement('span');
+                                label.className = 'sensor-label';
+                                label.textContent = info.name;
+                                
+                                buttonDiv.appendChild(button);
+                                buttonDiv.appendChild(label);
+                                
+                                if (info.type === 'backrest') {
+                                    backrestSection.appendChild(buttonDiv);
+                                } else {
+                                    cushionSection.appendChild(buttonDiv);
+                                }
+                            });
+                        
+                        container.appendChild(backrestSection);
+                        container.appendChild(cushionSection);
+                        
+                        // Notify chart.js that buttons are ready to attach listeners
+                        if (typeof attachSensorButtonListeners === 'function') {
+                            attachSensorButtonListeners();
+                        }
+                    })
+                    .catch(error => console.error('Error loading sensor config for buttons:', error));
+            }
+        </script>
+        <title>Postural Monitoring</title>
+    </head>
+    <body>
+		<div class="hover_bkgr_fricc">
+			<span class="helper"></span>
+			<div>
+				<div class="popupCloseButton">&times;</div>
+				<p>Seat is EMPTY<br />can't start ASANA</p>
+			</div>
+		</div>
+        <div class="container-fluid-nopad">
+
+            <nav class="navbar-nav-scroll navbar-dark bg-dark">
+                <ul class="navbar-nav mr-auto flex-row">
+					<li class="nav-item active">
+						<a class="navbar-brand nav-hmi" href="/">AIO Global View</a>
+					</li>
+                    <li class="nav-item active">
+						<a class="navbar-brand nav-hmi" href="hmi">HMI</a>
+					</li>
+					<li class="nav-item active">
+						<a class="nav-link" href="seat_status">OCS</a>
+					</li>  
+					<li class="nav-item active">
+						<a href="#" class="nav-link nav-monitoring" >ASANA<span class="sr-only"></span></a>
+					</li>
+<!-- 					<li class="nav-item active">
+						<a class="nav-link nav-monitoring-confort" href="#" >ASANA CONFORT<span class="sr-only">(current)</span></a>
+					</li> -->
+					<!-- <li class="nav-item active">
+						<a class="nav-link" href="unsafe_posture">Unsafe Posture</a>
+					</li> -->
+					<li class="nav-item active">
+						<a class="nav-link" href="chart">Charts</a>
+					</li>						
+				</ul>
+            </nav>
+
+            <div class="container">
+                <div class="row">
+                    <div class="col-md-4">
+					
+                        <!-- Dynamically generated sensor buttons -->
+						<div id="sensorButtonsContainer"></div>
+                    </div>
+                    <div class="col-md-7">                  
+                        <div class="row justify-content-center position-relative" style="margin-right: -30px;">
+                            <canvas id="backSensorsChart" aria-label="Back Sensors Chart" role="img" style="margin-top: 20px;max-width: 900px;max-height: 450px;"></canvas>
+                        </div>
+    
+                        <div class="row justify-content-center position-relative" style="margin-top: 10px; margin-right: -30px;">
+                            <span class="label">Duration (in seconds):</span>
+                            <span id="durationValue" class="value">10</span>
+                            <span><input type="range" min="10" max="60" step="10" value="10" id="duration" class="control"></span>
+                        </div>
+    
+                        <div class="row justify-content-center position-relative" style="margin-top: 10px; margin-right: -30px;">
+                            <span class="label">Acquisitions (per seconds):</span>
+                            <span id="acquisitionsValue" class="value">10</span>
+                            <span><input type="range" min="1" max="10" step="9" value="10" id="acquisitions" class="control"></span>
+                        </div>
+    
+                        <div class="row justify-content-center position-relative" style="margin-top: 5px; margin-right: -30px;">
+                            <button type="button" class="btn btn-outline-secondary btn-chart-pause" style="margin: 5px;">Pause</button>
+                            <button type="button" class="btn btn-outline-primary btn-chart-resume" style="display: none;margin: 5px;">Resume</button>
+                            <button type="button" class="btn btn-outline-info btn-chart-clear" style="margin: 5px;">Clear</button>
+                            <button type="button" class="btn btn-outline-dark btn-chart-resetZoom" style="display: none;margin: 5px;">Reset Zoom</button>
+                        </div>
+    
+    
+                        <div class="row justify-content-center position-relative" style="margin-right: -30px;">
+                            <canvas id="cushionSensorsChart" aria-label="Cushion Sensors Chart" role="img" style="margin-top: 10px;max-width: 900px;max-height: 450px;"></canvas>
+                        </div>
+                    </div>
+
+                </div>
+                
+            </div>
+        </div>
+    </body>
+</html>

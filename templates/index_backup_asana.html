@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=0.67">
+    <link rel="stylesheet" href="../static/css/style.css" />
+    <link rel="stylesheet" href="../static/css/bootstrap.css" />
+    <script src="../static/js/moment.min.js"></script>
+    <script src="../static/js/jquery-3.5.1.min.js"></script>
+    <script src="../static/js/socket.io.min.js"></script>
+    <script  src="../static/js/Chart.min.js"> </script>
+    <title>Postural Monitoring</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        .container_aio_global {
+            display: flex;
+            height: 100vh;
+            border: 10px solid #0927D5;
+            border-bottom-width: 58px;
+            flex-direction: row;
+        }
+        
+        .section {
+            border: 1px solid #ccc;
+            padding: 0px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .courbe {
+            border: 4px solid #0927D5;
+            border-top-width: 10px #0927D5;
+            border-top-width: 0px;
+            height: 100%;
+            box-sizing: border-box;
+            overflow-y: auto;
+            background-image: url(../static/img/backgrounf_chart.png);
+            background-size: 100%;
+            background-repeat: no-repeat;
+            background-position: center 25%;
+        }
+        .courbe_1 {
+            flex: 2;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        .courbe_2 {
+            flex: 2;
+            /* box-sizing: border-box; */
+            /* overflow-y: auto; */
+            position: relative;
+            left: 19%;
+        }
+        .courbe_3 {
+            flex: 2;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        
+        .section1 {
+            flex: 1.5;
+            background-color: #fff;
+            background-image: url(../static/img/seat.png);
+            background-size: 55%;
+            background-repeat: no-repeat;
+            background-position: center 61%;
+        }
+        
+        .section2 {
+            flex: 2;
+            /*border: 10px solid #0927D5;*/
+            box-sizing: border-box;
+            overflow-y: auto;
+            border-bottom-width: 0px;
+        }
+        .section3 {
+            flex: 1.5;
+            background-color: #fff;
+        }
+        .carreau{
+            background-color: #0927D5;
+            width : 100%;
+            height:17%;
+        }
+        section-messages {
+            width: 532px;
+            height: auto;
+            margin: 0 auto 0 auto;
+            background: hsl(120, 20%, 96%);
+            object-fit: cover;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .section-messages {
+            position: relative;
+            top: 52%;
+            left: 4%;
+        }
+        .status-message {
+            color: #0927D5;
+            font-size: 38px;            
+            font-family: "Arial Black", sans-serif; /* Arial Black avec une police de secours sans-serif */
+            font-style: italic; /* Texte en italique */
+            font-weight: bold;
+            text-align: center;
+            justify-content: center;
+        } 
+        .status-message-classification{
+            color: #0927D5;
+            font-size: 28px;
+            font-family: "Arial Black", sans-serif;
+            font-style: italic;
+            font-weight: bold;
+            text-align: center;
+        }         
+        .asana-message {
+            color: #0927D5;
+            font-size: 38px;            
+            font-family: "Arial Black", sans-serif; /* Arial Black avec une police de secours sans-serif */
+            font-style: italic; /* Texte en italique */
+            font-weight: bold;
+            text-align: center;
+            justify-content: center;
+        }
+        img.asana-img {
+            position: absolute;
+            top: 38%;
+            left: 75%;
+            width: 260px;
+            height: 345px;
+        }
+        .asana-section-messages {
+            position: relative;
+            top: 68%;
+            right: 0%;
+        }
+        img.bas-droite {
+            position: relative;
+            /* top: -85%; */
+            width: 50%;
+            height: 75%;
+            right: 18%;
+        }
+        img.ocs_logo {
+            position: absolute;
+            width: 22%;
+            top: 24%;
+            left: 5%;
+        }
+        img.asna_logo {
+            position: absolute;
+            top: 8%;
+            right: 3%;
+            /* height: 92px; */
+            /* width: 105px; */
+        }
+        button.btn.btn-rtm {
+            position: absolute;
+            top: 23%;
+            right: 2%;
+            width: 24%;
+        }
+        button.btn.btn-primary.btn-rtm {
+            position: absolute;
+            top: 23%;
+            right: 7%;
+            width: 13%;
+        }
+        img.all_in_one {
+            width: 23%;
+            position: relative;
+            top: -1%;
+            left: 65%;
+        }
+        .row.button-chart.position-relative {
+            position: relative;
+            left: 27%;
+        }
+        img.seat_picture {
+            height: 40%;
+            position: relative;
+            top: 22%;
+            left: 27%;
+        }
+        h1 {
+            color: #fff;
+            font-size: 80px;
+            text-align: center;
+            position: relative;
+            top: 17%;
+        }
+        img.btn-img {
+            width: 100%;
+        }
+
+        .status {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            margin: auto;
+            position: relative;
+            top: 39%;
+            left: -5%;
+        }
+        .active_seat {
+            animation: ring 1s infinite;
+            background-color: rgb(29 164 39);
+        }
+
+        @keyframes ring {
+
+        0% {
+            opacity: 1;
+            transform: scale(0.2, 0.2);
+        }
+        50% {
+            opacity: 0.5;
+            transform: scale(0.6, 0.6);
+        }
+        100% {
+            opacity: 0;
+            transform: scale(1, 1);
+        }
+    }
+
+    </style>
+</head>
+<body>
+    <div class="hover_bkgr_fricc">
+        <span class="helper"></span>
+        <div>
+            <div class="popupCloseButton">&times;</div>
+            <p id="popuptText">Seat is EMPTY<br />can't start ASANA</p>
+        </div>
+    </div>
+    <nav class="navbar-nav-scroll navbar-dark bg-dark">
+        <ul class="navbar-nav mr-auto flex-row">
+            <li class="nav-item active">
+                <a class="navbar-brand nav-hmi" href="/">AIO Global View</a>
+            </li>
+            <li class="nav-item active">
+                <a class="navbar-brand nav-hmi" href="hmi">HMI</a>
+            </li>
+            <li class="nav-item active">
+                <a class="nav-link" href="seat_status">OCS</a>
+            </li>  
+            <li class="nav-item active">
+                <a href="#" class="nav-link nav-monitoring" >ASANA<span class="sr-only">(current)</span></a>
+            </li>
+            <li class="nav-item active">
+                <a class="nav-link" href="unsafe_posture">Unsafe Posture</a>
+            </li>
+            <li class="nav-item active">
+                <a class="nav-link" href="chart">Charts</a>
+            </li>						
+        </ul>
+    </nav>
+    <div class="container_aio_global">
+        <div class="section1">
+            <div class="carreau">
+                <h1>Safety</h1>
+            </div>            
+            <img class="ocs_logo" src="../static/img/ocs_logo_v2.PNG" > 
+            <div class="status inactive_seat"></div>
+            <div class="section-messages">
+                <h2 class="section-title status-message-classification"></h2>
+                <h2 class="section-title status-message">Seat is Empty</h2>
+            </div>
+        </div>
+        <div class="section2">
+            <div class="carreau" style=" background-color: #fff;border: 10px solid #0927D5;border-top-width: 0px;">                            
+                <img class="all_in_one" src="../static/img/all_in_one.png" > 
+                <img class="bas-droite"  src="../static/img/logo_furvia.jpg" > 
+            </div>
+            <div class="courbe">                  
+                <div class="courbe_1">
+                    <canvas id="backSensorsChart" aria-label="Back Sensors Chart" role="img" style="margin-top: 20px;max-width: 900px;max-height: 450px;"></canvas>
+                </div>
+                <div class="courbe_2"> 
+                    <div class="row  position-relative" >
+                        <span class="label">Duration (in seconds):</span>
+                        <span id="durationValue" class="value">10</span>
+                        <span><input type="range" min="10" max="60" step="10" value="10" id="duration" class="control"></span>
+                    </div>
+
+                    <div class="row j position-relative" >
+                        <span class="label">Acquisitions (per seconds):</span>
+                        <span id="acquisitionsValue" class="value">10</span>
+                        <span><input type="range" min="1" max="10" step="9" value="10" id="acquisitions" class="control"></span>
+                    </div>
+
+
+                    <div class="row button-chart position-relative" >
+                        <button type="button" class="btn btn-outline-secondary btn-chart-pause" style="margin: 5px;">Pause</button>
+                        <button type="button" class="btn btn-outline-primary btn-chart-resume" style="display: none;margin: 5px;">Resume</button>
+                        <button type="button" class="btn btn-outline-info btn-chart-clear" style="margin: 5px;">Clear</button>
+                        <button type="button" class="btn btn-outline-dark btn-chart-resetZoom" style="display: none;margin: 5px;">Reset Zoom</button>
+                    </div>
+                    
+                </div>
+                <div class="courbe_3">
+                    <canvas id="cushionSensorsChart" aria-label="Cushion Sensors Chart" role="img" style="margin-top: 10px;max-width: 900px;max-height: 450px;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class=" section3">
+            <div class="carreau">
+                <h1>Comfort</h1>
+            </div>
+            <div class="asana-section-messages">   
+                <h2 class="section-title asana-message position"></h2>             
+            </div>   
+            <button active-cl class="btn btn-rtm btn-space " style=" border: 0px solid transparent; padding: 0px;">
+                <img class="btn-img"  src="../static/img/asna_button.PNG"  >  
+            </button>
+			    <img class="asana-img" id="fixed" src="../static/img/fixed.png" style="display: none;"  >  
+                <img class="asana-img" id="thorax" src="../static/img/dos_courbe_asana.png" style="display: none;" >  
+                <img class="asana-img" id="pelvis" src="../static/img/Bassin_avance_asana.png" style="display: none;" >  
+        </div>    
+        
+        
+    </div>
+    <script  src="../static/js/global_view.js"> </script>
+</body>
+
+</html>

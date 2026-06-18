@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<link rel="stylesheet" href="../static/css/style.css" />
+		<link rel="stylesheet" href="../static/css/bootstrap.css" />
+		<script src="../static/js/moment.min.js"></script>
+		<script src="../static/js/jquery-3.5.1.min.js"></script>
+		<script src="../static/js/socket.io.min.js"></script>
+		<script  src="../static/js/monitoring.js"> </script>
+        <title>Postural Monitoring</title>
+    </head>
+    <body>
+		<div class="hover_bkgr_fricc">
+			<span class="helper"></span>
+			<div>
+				<div class="popupCloseButton">&times;</div>
+				<p id="popuptText">Seat is EMPTY<br />can't start ASANA</p>
+				<button class="btn btn-primary  btn-space d-none" id="btn-p1">Profile 1</button>
+				<button class="btn btn-primary  btn-space d-none" id="btn-p2">Profile 2</button>
+				<button class="btn btn-primary  btn-space d-none" id="btn-p3">Profile 3</button>
+				<button class="btn btn-primary  btn-space d-none" id="btn-p4">Profile 4</button>
+			</div>
+		</div>
+        <div class="container-fluid-nopad">
+			
+			<nav class="navbar-nav-scroll navbar-dark bg-dark">
+                <ul class="navbar-nav mr-auto flex-row">
+					<li class="nav-item active">
+						<a class="navbar-brand nav-hmi" href="/">AIO Global View</a>
+					</li>
+                    <li class="nav-item active">
+						<a class="navbar-brand nav-hmi" href="hmi">HMI</a>
+					</li>
+					<li class="nav-item active">
+						<a class="nav-link" href="seat_status">OCS</a>
+					</li>  
+					<li class="nav-item active">
+						<a href="monitoring" class="nav-link nav-monitoring" >ASANA<span class="sr-only">(current)</span></a>
+					</li>
+<!-- 					<li class="nav-item active">
+						<a class="nav-link nav-monitoring-confort" href="#" >ASANA CONFORT<span class="sr-only">(current)</span></a>
+					</li> -->
+                    <!-- <li class="nav-item active">
+						<a class="nav-link" href="unsafe_posture">Unsafe Posture</a>
+					</li> -->
+					<li class="nav-item active">
+						<a class="nav-link" href="chart">Charts</a>
+					</li>						
+				</ul>
+            </nav>
+			
+
+            <div class="container">
+                <div class="col">
+
+                    <div class="row justify-content-center position-relative">
+
+                        <div class="panel">
+							<div rtm-cl class="card">
+                                        <button active-cl class="btn btn-primary btn-rtm btn-space ">ASANA_Coach</button>
+										<button activated-cl class="btn btn-primary btn-rtm-spinner d-none" type="button" disabled>ASANA_Coach </button>
+                            </div>
+							
+							<div data-monitoring class="card d-none">
+								
+								<div class="card-body align-items-center d-flex justify-content-center">
+                                    <ul class="list-group list-group-flush">
+										<li data-seat-condition class="list-group-item ">
+                                        Seat Condition: <span>Seat Dry</span>
+                                    </li>
+                                    <li data-pssc class="list-group-item d-none">
+                                        <span>Wait for PSSC &#x274C;</span>
+                                        <div class="loader pl-2"></div>
+                                    </li>
+                                    <!-- <li data-search-pos class="list-group-item d-none">
+                                        <span>Waiting for a person</span>
+                                        <div class="pl-2 loader"></div>
+                                    </li> -->
+                                    <li data-oh-cl class="list-group-item ">
+											PresenceType: <span>Empty Seat</span>
+									</li>
+                                    <button data-human-cl human-cl-btn class="list-group-item btn-human-cl d-none">
+                                            HumanType: <span>(not available)</span>
+                                    </button>
+                                    <li data-safety class="list-group-item ">
+                                        Safety Status: <span>Safe</span>
+                                    </li>
+										<li human-cl-data class="list-group-item d-none">
+                                            <table data-human-table class="table table-striped text-center">
+                                                <tbody>
+                                                    <tr>
+                                                    <td>Baby 0-1</td>
+                                                    <td classic="0"><span>0</span>%</td>
+                                                    </tr>
+                                                    <tr>
+                                                    <td>Child 1-6</td>
+                                                    <td classic="1"><span>0</span>%</td>
+                                                    </tr>
+                                                    <tr>
+                                                    <td>5th perc</td>
+                                                    <td classic="2"><span>0</span>%</td>
+                                                    </tr>
+                                                    <tr>
+                                                    <td>50th perc</td>
+                                                    <td classic="3"><span>0</span>%</td>
+                                                    </tr>
+                                                    <tr>
+                                                    <td>95th perc</td>
+                                                    <td classic="4"><span>0</span>%</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        <li bmi-cl class="list-group-item d-none">
+                                            <table class="table table-striped text-center">
+                                                <tbody>
+                                                    <tr>
+                                                    <td>Height</td>
+                                                    <td bmid="0"><span>0.0</span> cm</td>
+                                                    </tr>
+                                                    <tr>
+                                                    <td>Weight</td>
+                                                    <td bmid="1"><span>0.0</span> kg</td>
+                                                    </tr>
+                                                    <tr>
+                                                    <td>BMI</td>
+                                                    <td bmid="2"><span>0.0</span></td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </li>
+                                    </ul>
+                                </div>
+							
+                                <div  class="card-header font-weight-bold text-center d-none">Monitoring</div>
+                                <div class="card-body align-items-center d-flex justify-content-center">
+                                    <ul class="list-group list-group-flush">
+                                        <li data-thorax class="list-group-item d-none">
+                                            Thorax: <span>(not available)</span>
+                                        </li>
+                                        <li data-pelvis class="list-group-item d-none">
+                                            Pelvis: <span>(not available)</span>
+                                        </li>
+										<li data-extended-thorax class="list-group-item d-none">
+                                            Extend Thorax: <span>(not available)</span>
+                                        </li>
+										<li data-fidgeting class="list-group-item d-none">
+                                            Fidgeting: <span>(not available)</span>
+                                        </li>
+										<li data-dissymetry class="list-group-item d-none">
+                                            Dissymetry: <span>(not available)</span>
+                                        </li>
+										<li data-leaning_forward class="list-group-item d-none">
+                                            Leaning Forward: <span>(not available)</span>
+                                        </li>
+										<li data-feet_on_dashboard class="list-group-item d-none">
+                                            Feet on dashboard: <span>(not available)</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+							<div production-value class="card d-none">
+                                <div class="card-header font-weight-bold text-center">
+									Do you want to update production value ?</div>
+                                <div class="card-body align-items-center d-flex justify-content-center">
+                                    <ul class="list-group list-group-flush">
+                                        <button class="btn btn-primary btn-yes-production btn-space">YES</button>
+                                        <button class="btn btn-primary btn-no-production">NO</button>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="wrapper">
+							<img class="main-img" src="../static/img/main.png">
+
+                            <!-- TOP -->
+                            <!-- C2 -->
+                            <svg width="185" height="520" fill="url(#gradient2)" viewBox="360 355 185 520" data-capteur="c2" data-capteur-pos="back_top_left" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <radialGradient id="gradient2" cy="50%" fx="50%" fy="50%" r="0.2">
+                                        <stop offset="0%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="10%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="20%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="30%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="40%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="50%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="60%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="70%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="80%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="90%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="100%" stop-color="rgb(55,255,255)" />
+                                    </radialGradient>
+                                </defs>
+                                <polygon points="440 355, 545 395, 550 860, 435 730, 370 610"></polygon>
+                            </svg>
+
+                            <!-- C4 -->
+                            <svg width="210" height="520" fill="url(#gradient4)" data-capteur="c4" data-capteur-pos="back_top_right" viewBox="605 355 190 520" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <radialGradient id="gradient4" cy="50%" fx="50%" fy="50%" r="0.2">
+                                        <stop offset="0%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="10%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="20%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="30%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="40%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="50%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="60%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="70%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="80%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="90%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="100%" stop-color="rgb(55,255,255)" />
+                                    </radialGradient>
+                                </defs>
+                                <polygon points="665 390,755 350,795 500,800 630,745 720,605 860"></polygon>
+                            </svg>
+
+                            <!-- C3 -->
+                            <svg width="450" height="200" fill="url(#gradient3)" data-capteur="c3" data-capteur-pos="back_center" viewBox="350 860 450 200" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <radialGradient id="gradient3" cy="55%" fx="50%" fy="50%" r="0.2">
+                                        <stop offset="0%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="10%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="20%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="30%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="40%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="50%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="60%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="70%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="80%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="90%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="100%" stop-color="rgb(55,255,255)" />
+                                    </radialGradient>
+                                </defs>
+                                <polygon points="540 860, 610 860, 800 1060, 350 1060"></polygon>
+                            </svg>
+
+                            <!-- C1 -->
+                            <svg width="245" height="158" fill="url(#gradient1)" data-capteur="c1" data-capteur-pos="back_bottom_left" viewBox="320 1060 245 158" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <radialGradient id="gradient1" cy="50%" fx="50%" fy="50%" r="0.3">
+                                        <stop offset="0%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="10%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="20%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="30%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="40%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="50%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="60%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="70%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="80%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="90%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="100%" stop-color="rgb(55,255,255)" />
+                                    </radialGradient>
+                                </defs>
+                                <polygon points="350 1060, 320 1190, 350 1195, 450 1215, 565 1220, 565 1060"></polygon>
+                            </svg>
+
+                            <!-- C5 -->
+                            <svg width="235" height="165" fill="url(#gradient5)" data-capteur="c5" data-capteur-pos="back_bottom_right" viewBox="565 1060 235 165" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <radialGradient id="gradient5" cy="50%" fx="50%" fy="50%" r="0.3">
+                                        <stop offset="0%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="10%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="20%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="30%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="40%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="50%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="60%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="70%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="80%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="90%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="100%" stop-color="rgb(55,255,255)" />
+                                    </radialGradient>
+                                </defs>
+                                <polygon points="565 1060, 565 1218, 705 1225, 800 1218, 800 1060"></polygon>
+                            </svg>
+
+                            <!-- C6 -->
+                            <svg width="410" height="185" fill="url(#gradient6)" data-capteur="c6" data-capteur-pos="cushion_top_left" viewBox="150 1190 410 185" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <!-- <radialGradient id="gradient6" cx="40%" cy="40%" fx="30%" fy="50%" r="0.2"> -->
+                                    <radialGradient id="gradient6" cy="40%" fx="50%" fy="50%" r="0.25">
+                                        <stop offset="0%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="10%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="20%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="30%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="40%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="50%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="60%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="70%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="80%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="90%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="100%" stop-color="rgb(55,255,255)" />
+                                    </radialGradient>
+                                </defs>
+                                <polygon points="320 1190, 150 1265, 289 1375, 560 1220, 455 1215"></polygon>
+                                <!-- <polygon points="705 1226, 800 1220, 830 1315, 620 1390, 560 1220"></polygon> -->
+                            </svg>
+
+                            <!-- C9 -->
+                            <svg width="270" height="170" fill="url(#gradient9)" data-capteur="c9" data-capteur-pos="cushion_top_right" viewBox="560 1220 270 170" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <radialGradient id="gradient9" cy="40%" fx="50%" fy="50%" r="0.25">
+                                        <stop offset="0%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="10%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="20%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="30%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="40%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="50%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="60%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="70%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="80%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="90%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="100%" stop-color="rgb(55,255,255)" />
+                                    </radialGradient>
+                                </defs>
+                                <polygon points="705 1226, 800 1220, 830 1315, 620 1390, 560 1220"></polygon>
+                            </svg>
+
+                            <!-- C8 -->
+                            <svg width="330" height="170" fill="url(#gradient8)" data-capteur="c8"  data-capteur-pos="cushion_center" viewBox="290 1220 330 170" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <radialGradient id="gradient8" cy="60%" cx="65%" fy="50%" r="0.25">
+                                        <stop offset="0%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="10%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="20%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="30%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="40%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="50%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="60%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="70%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="80%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="90%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="100%" stop-color="rgb(55,255,255)" />
+                                    </radialGradient>
+                                </defs>
+                                <polygon points="560 1220, 290 1375, 510 1380, 620 1390, 572 1255"></polygon>
+                            </svg>
+
+                            <!-- C10 -->
+                            <svg width="400" height="175" fill="url(#gradient10)" data-capteur="c10" data-capteur-pos="cushion_bottom_right" viewBox="425 1380 400 175" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <radialGradient id="gradient10" cy="50%" cx="35%" fy="50%" r="0.25">
+                                        <stop offset="0%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="10%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="20%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="30%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="40%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="50%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="60%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="70%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="80%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="90%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="100%" stop-color="rgb(55,255,255)" />
+                                    </radialGradient>
+                                </defs>
+                                <polygon points="460 1380, 615 1390, 825 1555, 425 1515"></polygon>
+                            </svg>
+
+                            <!-- C7 -->
+                            <svg width="389" height="141" fill="url(#gradient7)" data-capteur="c7" data-capteur-pos="cushion_bottom_left" viewBox="70 1374 389 141" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <radialGradient id="gradient7" cy="60%" cx="60%" fy="50%" r="0.25">
+                                        <stop offset="0%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="10%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="20%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="30%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="40%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="50%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="60%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="70%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="80%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="90%" stop-color="rgb(55,255,255)" />
+                                        <stop offset="100%" stop-color="rgb(55,255,255)" />
+                                    </radialGradient>
+                                </defs>
+                                <polygon points="459 1380, 295 1374, 70 1505, 425 1515"></polygon>
+                            </svg>
+
+                            <!-- TMP ROUND TO POS -->
+                            <!-- <svg style="top: 1220px; left: 560px;" width="5" height="5" data-capteur="c11">
+                                <rect width="5" height="5" rx="15" ry="15" fill="red" />
+                            </svg> -->
+
+                        </div>
+                    </div>
+                </div>
+                <div class="debug">
+					<div class="card-body align-items-center d-flex justify-content-center">
+							<ul class="list-group list-group-flush">
+								<button class="btn btn-primary btn-pause btn-space d-none">PAUSE</button>
+								<button class="btn btn-primary btn-resume d-none">RESUME</button>
+							</ul>
+                     </div>
+					<div data-confort-score class="card-header font-weight-bold text-center d-none">Confort score : <span>0</span></div>
+					<div data-confort-score-time class="card-header font-weight-bold text-center d-none">Confort score Time : <span>0</span></div>
+					<div data-confort-score-fidgetings class="card-header font-weight-bold text-center d-none">Confort score Fidgetings : <span>0</span></div>
+					<div data-confort-score-pelvis class="card-header font-weight-bold text-center d-none">Confort score Pelvis : <span>0</span></div>
+					<div data-confort-score-thorax class="card-header font-weight-bold text-center d-none">Confort score Thorax : <span>0</span></div>
+                    <div class="card">
+                        <div class="card-header font-weight-bold text-center">Values of the sensors</div>
+                        <div class="card-body">
+                            <table class="table table-dark table-striped text-center">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 20%">Sensor</th>
+                                        <th style="width: 47%">Raw value</th>
+                                        <th style="width: 33%">Offset</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                    <td>C1</td>
+                                    <td data-value="c1"><span>0</span></td>
+                                    <td offset-value="c1"><span>0</span></td>
+                                    </tr>
+                                    <tr>
+                                    <td>C2</td>
+                                    <td data-value="c2"><span>0</span></td>
+                                    <td offset-value="c2"><span>0</span></td>
+                                    </tr>
+                                    <tr>
+                                    <td>C3</td>
+                                    <td data-value="c3"><span>0</span></td>
+                                    <td offset-value="c3"><span>0</span></td>
+                                    </tr>
+                                    <tr>
+                                    <td>C4</td>
+                                    <td data-value="c4"><span>0</span></td>
+                                    <td offset-value="c4"><span>0</span></td>
+                                    </tr>
+                                    <tr>
+                                    <td>C5</td>
+                                    <td data-value="c5"><span>0</span></td>
+                                    <td offset-value="c5"><span>0</span></td>
+                                    </tr>
+                                    <tr>
+                                    <td>C6</td>
+                                    <td data-value="c6"><span>0</span></td>
+                                    <td offset-value="c6"><span>0</span></td>
+                                    </tr>
+                                    <tr>
+                                    <td>C7</td>
+                                    <td data-value="c7"><span>0</span></td>
+                                    <td offset-value="c7"><span>0</span></td>
+                                    </tr>
+                                    <tr>
+                                    <td>C8</td>
+                                    <td data-value="c8"><span>0</span></td>
+                                    <td offset-value="c8"><span>0</span></td>
+                                    </tr>
+                                    <tr>
+                                    <td>C9</td>
+                                    <td data-value="c9"><span>0</span></td>
+                                    <td offset-value="c9"><span>0</span></td>
+                                    </tr>
+                                    <tr>
+                                    <td>C10</td>
+                                    <td data-value="c10"><span>0</span></td>
+                                    <td offset-value="c10"><span>0</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

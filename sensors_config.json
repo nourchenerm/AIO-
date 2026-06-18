@@ -1,0 +1,32 @@
+{
+  "backrest_sensors": [7, 8, 9, 10],
+  "cushion_sensors": [1, 2, 3, 4, 5, 6],
+  "visibleSensors": {
+    "backrest": [7, 8, 9, 10],
+    "cushion": [1, 2, 3, 4, 5, 6]
+  },
+  "sensor_mapping": {
+    "1": 0,
+    "2": 1,
+    "3": 2,
+    "4": 3,
+    "5": 4,
+    "6": 5,
+    "7": 6,
+    "8": 7,
+    "9": 8,
+    "10": 9
+  },
+  "sensor_info": {
+    "1": { "type": "cushion",  "chart_index": 0, "name": "C1 - Cushion Front Right", "color": "rgb(0, 168, 255)" },
+    "2": { "type": "cushion",  "chart_index": 1, "name": "C2 - Cushion Front Left",  "color": "rgb(165, 177, 194)" },
+    "3": { "type": "cushion",  "chart_index": 2, "name": "C3 - Cushion Center",      "color": "rgb(46, 213, 115)" },
+    "4": { "type": "cushion",  "chart_index": 3, "name": "C4 - Cushion Rear Left",   "color": "rgb(235, 59, 90)" },
+    "5": { "type": "cushion",  "chart_index": 4, "name": "C5 - Cushion Rear Right",  "color": "rgb(15, 185, 177)" },
+    "6": { "type": "cushion",  "chart_index": 5, "name": "C6 - Cushion Top Center",  "color": "rgb(136, 84, 208)" },
+    "7": { "type": "backrest", "chart_index": 0, "name": "C7 - Back Low Center",     "color": "rgb(255, 165, 2)" },
+    "8": { "type": "backrest", "chart_index": 1, "name": "C8 - Back Right",          "color": "rgb(55, 66, 250)" },
+    "9": { "type": "backrest", "chart_index": 2, "name": "C9 - Back Left",           "color": "rgb(46, 213, 115)" },
+    "10": { "type": "backrest", "chart_index": 3, "name": "C10 - Back High Center",  "color": "rgba(47,53,66,1.000)" }
+  }
+}

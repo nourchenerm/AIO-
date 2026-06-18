@@ -1,0 +1,96 @@
+activate_ods    : true
+activate_oop    : true
+activate_safety : false
+activate_ocs    : true
+protocol:
+    type: mqtt
+    #host: 192.168.33.200
+    host: 127.0.0.1
+    port: 1883
+    function: DataFusion
+    retry_connection_s : 1
+    pub_topics:
+      is_ready_pub                 : "Seat/SM/IsReady"
+      occupant_detected_pub        : "Seat/SM/DataFusion/ODS/Occupant/Detected"
+      occupant_class_pub           : "Seat/SM/DataFusion/OCS/Occupant/Class"
+      occupant_height_class_pub    : "Seat/SM/DataFusion/OCS/Occupant/Class/Height"
+      occupant_weight_class_pub    : "Seat/SM/DataFusion/OCS/Occupant/Class/Weight"
+      occupant_age_class_pub       : "Seat/SM/DataFusion/OCS/Occupant/Class/Age"
+      occupant_hip_class_pub       : "Seat/SM/DataFusion/OCS/Occupant/Class/Hip"
+      occupant_sex_class_pub       : "Seat/SM/DataFusion/OCS/Occupant/Class/Sex"
+      is_oop_class_pub             : "Seat/SM/DataFusion/OOP"
+      oop_pelvis_drift_pub         : "Seat/SM/DataFusion/OOP/PelvisDrift"
+      oop_thorax_pub               : "Seat/SM/DataFusion/OOP/Thorax"
+      oop_leaning_forward_pub      : "Seat/SM/DataFusion/OOP/LeaningForward"
+      oop_dissymmetry_pub          : "Seat/SM/DataFusion/OOP/Dissymmetry"
+      oop_feet_on_dashboard_pub    : "Seat/SM/DataFusion/OOP/FeetOnDashboard"
+      oop_reaching_rear_bench_pub  : "Seat/SM/DataFusion/OOP/ReachingRearBench"
+      oop_reaching_glove_box_pub   : "Seat/SM/DataFusion/OOP/ReachingGloveBox"
+      alarm_distraction_pub        : "Seat/SM/DataFusion/Alarm/Distraction"
+      alarm_drowsiness_pub         : "Seat/SM/DataFusion/Alarm/Drowsiness"
+      morpho_hip_width_pub         : "Seat/SM/DataFusion/Morpho/Hip/Width"
+      morpho_height_pub            : "Seat/SM/DataFusion/Morpho/Height"
+      morpho_weight_pub            : "Seat/SM/DataFusion/Morpho/Weight"
+      seat_belt_pub                : "Seat/SM/DataFusion/SeatBelt"
+      safety_status_pub            : "Seat/SM/DataFusion/SafetyStatus" #0-->safe  / 1--> unsafe
+    sub_topics:
+      reset_sub                     : "SM/Seat/Reset"
+      driving_mode_sub              : "SM/Seat/DrivingMode"
+      check_is_ready_sub           : "SM/Seat/Check/IsReady"
+      seat_belt_sub                 : "Actium/MQTTAccessV_1_0/Devices/SwitchBox/CAN/Read/Ghost/Belt/Value"
+      override_height_estimation_sub: "SM/Seat/TailorFit/Override/Occupant/Class/Height"
+standardized_data_structure : standardized_data.json
+
+###########################################################################       
+aio_protocol:
+  type: tcp_client
+  #host: 192.168.55.138
+  host: 127.0.0.1
+  port: 5001
+  #port: 5342
+  retry_connection_s : 1
+  encoding: utf-8
+  buffer_size: 4096
+driving_modes:
+  driving: 0
+  relax : 1
+oop_model_path : oop_classifier.pkl
+ods_model_path : ods_classifier.pkl
+##################################################################################
+camera_protocol:
+  type: udp
+  broadcast: false
+  host: 0.0.0.0
+  port: 1231
+  encoding: utf-8
+  retry_connection_s: 1
+  buffer_size: 10240
+height_classes : 
+  0 : None
+  1 : S
+  2 : M
+  3 : L
+  4 : XL
+weight_classes: 
+  0 : None
+  1 : S
+  2 : M
+  3 : L
+age_classes : 
+  0 : None 
+  1 : Very_Young
+  2 : Young
+  3 : Middle_Age
+  4 : Old
+sex_classes:
+  0 : None
+  1 : Male 
+  2 : Female
+camera_oop:
+  0 : GoodPosture
+  1 : ReachingRearBench
+  2 : ReachingGloveBox       
+  3 : Disseymetry
+  4 : HeadOnChest
+  5 : Other
+  6 : LeanOut
