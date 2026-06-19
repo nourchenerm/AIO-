@@ -79,8 +79,11 @@ def predict_all_models(X: np.ndarray, models: dict) -> dict:
             pred_frames = model.predict(X)
             pred_final = float(trim_mean(pred_frames, proportiontocut=0.1))
             predictions[model_name] = round(pred_final, 1)
+            print(f"  ✅ {model_name} → {pred_final:.1f} kg")
         except Exception as e:
-            print(f"  ⚠️  Erreur prédiction {model_name} : {e}")
+            import traceback
+            print(f"  ❌ {model_name} ERREUR COMPLÈTE :")
+            traceback.print_exc()
             predictions[model_name] = None
     return predictions
 
@@ -214,7 +217,7 @@ def predict_weight(X: np.ndarray, model_path: str = '') -> float:
 class AIOHandler:
     """Handler for AIO (Analog Input/Output) data processing from TCP, relié au frontend via SocketIO."""
 
-    PREDICT_TARGET_FRAMES = 100  # nombre de frames à accumuler avant la moyenne finale
+    PREDICT_TARGET_FRAMES = 100  # réduit pour tests rapides
 
     def __init__(self, config, model_paths: dict, socketio):
         """
@@ -235,6 +238,21 @@ class AIOHandler:
             except FileNotFoundError:
                 print(f"  ❌ Modèle introuvable : {name} ({path})")
 
+        # If no real models were loaded, provide a dummy fallback model
+        if not self.models:
+            class DummyModel:
+                def predict(self, X):
+                    # Simple heuristic: predict a constant or based on total pressure
+                    try:
+                        totals = X[:, 0] if X.shape[1] > 0 else np.zeros(X.shape[0])
+                        # return a per-frame constant prediction (quick test)
+                        return np.full((X.shape[0],), 70.0, dtype=float)
+                    except Exception:
+                        return np.full((X.shape[0],), 70.0, dtype=float)
+
+            self.models['Dummy'] = DummyModel()
+            print('  ⚠️ Aucun modèle trouvé — utilisation d\'un DummyModel pour tests (prédictions constantes).')
+
         # ── Gestion personnes ─────────────────────────────────────
         self.person_counter = 0
         self.current_person = None
@@ -243,7 +261,7 @@ class AIOHandler:
         # ── ODS state machine ─────────────────────────────────────
         self.ods_state = 0
         self.ods_detection_time = None
-        self.delay_duration = 2.0
+        self.delay_duration = 0.5  # délai plus court pour tests
 
         # ── État de prédiction (déclenché par le bouton frontend) ──
         self.is_predicting = False
@@ -276,30 +294,57 @@ class AIOHandler:
         print(f"{'=' * 70}\n")
 
     # ──────────────────────────────────────────────────────────────
-    def start_prediction(self):
-        """Appelé quand le frontend clique sur 'Weight Predict'."""
+    def start_prediction(self, person_name: str = None):
+        """Appelé quand le frontend clique sur 'Weight Predict'.
+
+        Si `person_name` est fourni, on l'utilise comme `current_person`
+        (utilisateur peut saisir un nom depuis le frontend).
+        """
+        if person_name:
+            try:
+                # sanitize simple: strip and replace spaces by underscore
+                pn = str(person_name).strip()
+                if pn:
+                    self.current_person = pn
+                    print(f"ℹ️  Person name set from frontend: {self.current_person}")
+            except Exception:
+                pass
+
         if self.ods_state == 0:
             if self.socketio:
                 self.socketio.emit('predict_error', {'message': "Seat is EMPTY, can't start ASANA"})
             return
+
         self.is_predicting = True
         self.predict_frame_count = 0
         self.predict_buffer = {name: [] for name in self.models}
-        print(f"\n🎯 Démarrage prédiction pour {self.current_person} (objectif {self.PREDICT_TARGET_FRAMES} frames)")
+        print(f"\n🎯 Démarrage prédiction pour {self.current_person} (objectif {self.PREDICT_TARGET_FRAMES} frames) — delay={self.delay_duration}s")
 
     # ──────────────────────────────────────────────────────────────
-    def _emit_values(self, raw: np.ndarray, ods_status: int):
-        """Émet l'événement 'values' attendu par global_view.js (statut + courbes)."""
+    def _emit_values(self, raw: np.ndarray, ods_status: int, cushion_sum: float):
+        """
+        Émet les événements attendus par socket_live.js (statut + courbes).
+        - 'ods_update'   : à chaque frame où le siège est vide (ods_status == 0)
+        - 'frame_update' : à chaque frame où le siège est occupé (ods_status == 1),
+                            même en dehors d'une prédiction active, pour faire vivre
+                            le chart "Back + Cushion Sensors" en continu.
+        """
         if not self.socketio:
             return
+
         frame = [float(v) for v in raw.flatten()[:10]]
-        payload = {
-            "time": datetime.now().isoformat(),
-            "object_human": int(ods_status),
-            "occupied_offset": frame,
-            "offset": frame,
-        }
-        self.socketio.emit("frame_update", payload)
+
+        if ods_status == 0:
+            self.socketio.emit("ods_update", {"cushion_sum": float(cushion_sum)})
+        else:
+            self.socketio.emit("frame_update", {
+                "person_id": self.current_person,
+                "frame_idx": self.frame_count,
+                "sensors": frame,
+                "preds": {},          # pas de prédiction hors mode "start_prediction"
+                "ods": int(ods_status),
+                "cushion_sum": float(cushion_sum),
+            })
 
     # ──────────────────────────────────────────────────────────────
     def on_aio_receive(self, data):
@@ -328,7 +373,7 @@ class AIOHandler:
                         ods_status, cushion_sum = detect_ods(raw, cushion_threshold=20000.0)
 
                         # 3. Toujours émettre vers le frontend (Section 1 statut + Section 2 courbes)
-                        self._emit_values(raw, ods_status)
+                        self._emit_values(raw, ods_status, cushion_sum)
 
                         if ods_status == 0:
                             print(f"⚠️  Siège VIDE (ODS=0, cushion_sum={cushion_sum:.1f})")
@@ -357,13 +402,21 @@ class AIOHandler:
                                     X = preprocess(raw)
                                     preds = predict_all_models(X, self.models)
                                     payload = {
+                                        "person_id": self.current_person,
+                                        "frame_idx": self.predict_frame_count,
+                                        "sensors": raw.flatten().tolist(),
+                                        "preds": preds,
                                         "ods": ods_status,
-                                        "predictions": preds,
-                                        "sensors": raw.flatten().tolist()
+                                        "cushion_sum": float(cushion_sum),
                                     }
-                                    print("EMIT VALUES -> FRONTEND")
+                                    print("EMIT FRAME_UPDATE -> FRONTEND")
+                                    # Print per-frame predictions to terminal for debugging
+                                    try:
+                                        print(f"  ▶ Frame {self.predict_frame_count:03d} preds: {preds}")
+                                    except Exception:
+                                        print("  ▶ Frame preds: (unprintable)")
 
-                                    self.socketio.emit("values", payload)
+                                    self.socketio.emit("frame_update", payload)
 
                                     print(f"\n  📊 Frame {self.predict_frame_count:03d}/{self.PREDICT_TARGET_FRAMES} | {self.current_person}")
                                     for model_name, pred in preds.items():
@@ -392,14 +445,36 @@ class AIOHandler:
                                                 final_val = round(trim_mean(buf, proportiontocut=0.1), 1)
                                                 results.append({'model': model_name, 'predicted': final_val})
 
+                                        # If no buffered results, try fallback to last-frame preds (robustness)
+                                        if not results:
+                                            try:
+                                                fallback = []
+                                                for model_name, last_val in (preds or {}).items():
+                                                    if last_val is not None:
+                                                        fallback.append({'model': model_name, 'predicted': round(float(last_val), 1)})
+                                                if fallback:
+                                                    results = fallback
+                                                    print('  ⚠️ Fallback used: using last-frame predictions as final results')
+                                                else:
+                                                    print('  ⚠️ No buffered results AND no last-frame preds available')
+                                            except Exception as e:
+                                                print('  ⚠️ Error while building fallback results:', e)
+
                                         print(f"\n{'★' * 70}")
                                         print(f"   PRÉDICTION FINALE — {self.current_person} ({self.PREDICT_TARGET_FRAMES} frames)")
+                                        print('  DEBUG predict_buffer lengths:', {k: len(v) for k, v in self.predict_buffer.items()})
                                         for r in results:
                                             print(f"   {r['model']:<14} → {r['predicted']:>6.1f} kg")
                                         print(f"{'★' * 70}")
 
                                         if self.socketio:
-                                            self.socketio.emit('predict_result', {'results': results})
+                                            debug_counts = {k: len(v) for k, v in self.predict_buffer.items()}
+                                            self.socketio.emit('predict_result', {'results': results, 'debug_counts': debug_counts})
+
+                                        # Log final results to terminal
+                                        print('\nFINAL PREDICTION RESULTS:')
+                                        for r in results:
+                                            print(f"   - {r['model']}: {r['predicted']} kg")
 
                                         self.is_predicting = False
                                         self.predict_frame_count = 0

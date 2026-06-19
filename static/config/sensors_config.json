@@ -5,12 +5,16 @@
     "3": 2,
     "4": 3,
     "5": 4,
-    "6": 5
+    "6": 5,
+    "7": 6,
+    "8": 7,
+    "9": 8,
+    "10": 9
   },
-  "backrest_sensors": [],
+  "backrest_sensors": [7, 8, 9, 10],
   "cushion_sensors": [1, 2, 3, 4, 5, 6],
   "visibleSensors": {
-    "backrest": [],
+    "backrest": [7, 8, 9, 10],
     "cushion": [1, 2, 3, 4, 5, 6]
   },
   "sensor_info": {
@@ -20,5 +24,10 @@
     "4": {"name": "C4 - Cushion Front Left", "type": "cushion", "color": "rgb(235, 59, 90)"},
     "5": {"name": "C5 - Cushion Rear Left", "type": "cushion", "color": "rgb(15, 185, 177)"},
     "6": {"name": "C6 - Cushion Bugles Right", "type": "cushion", "color": "rgb(136, 84, 208)"}
+    ,
+    "7": {"name": "C7 - Back Low Center", "type": "backrest", "color": "rgb(255, 165, 2)"},
+    "8": {"name": "C8 - Back Center Right", "type": "backrest", "color": "rgb(55, 66, 250)"},
+    "9": {"name": "C9 - Back Center Left", "type": "backrest", "color": "rgb(46, 213, 115)"},
+    "10": {"name": "C10 - Back High Center", "type": "backrest", "color": "rgba(47,53,66,1.000)"}
   }
 }

@@ -9,8 +9,7 @@ var oh_class_global = 0;
 let last_human_class = 0;
 
 // GLOBAL VAR
-let chartBack;
-let chartCushion;
+window.chartSensors = null;
 let isTimeRefSetted = false;
 let timeRef;
 let duration = 10;
@@ -48,6 +47,8 @@ window.addEventListener("DOMContentLoaded", (event) => {
     loadSensorConfig().then(() => {
         //configControls();
         initCharts();
+        // build sensor maps after charts are initialized
+        buildSensorMaps();
         setupSocketListeners();
     });
 });
@@ -71,7 +72,6 @@ function loadSensorConfig() {
                 };
             }
             configReady = true;
-            buildSensorMaps(); // create maps right after load
             console.log('Sensor configuration loaded:', sensorConfig);
             console.log('Visible sensors:', visibleSensors);
         })
@@ -89,24 +89,41 @@ function loadSensorConfig() {
                 cushion: [1, 2, 3, 4, 5, 6]
             };
             configReady = true;
-            buildSensorMaps();
         });
 }
 
 // Build helper mapping objects from config for chart indexing
 function buildSensorMaps() {
-    OrderSensorBack = {};
-    OrderSensorCushion = {};
-    if (!sensorConfig || !sensorConfig.sensor_info) return;
+    let allDatasets = [];
+    let sensorOrder = [];
 
     Object.keys(sensorConfig.sensor_info).forEach(idStr => {
         const id = Number(idStr);
         const info = sensorConfig.sensor_info[idStr];
-        if (!info) return;
-        if (info.type === 'backrest') OrderSensorBack[id] = info.chart_index;
-        if (info.type === 'cushion') OrderSensorCushion[id] = info.chart_index;
+
+        const isVisible =
+            (info.type === 'backrest' && visibleSensors.backrest.includes(id)) ||
+            (info.type === 'cushion' && visibleSensors.cushion.includes(id));
+
+        if (!isVisible) return;
+
+        allDatasets.push({
+            label: info.name || `Sensor ${id}`,
+            borderColor: info.color || 'black',
+            data: []
+        });
+
+        sensorOrder.push(id);
     });
-}
+
+    if (!window.chartSensors) {
+        console.warn('buildSensorMaps: chartSensors not initialized yet, skipping');
+        return;
+    }
+
+    window.chartSensors.data.datasets = allDatasets;
+    window.chartSensors.update();
+    }
 
 // Get actual sensor index from sensor ID
 function getSensorIndex(sensorId) {
@@ -134,11 +151,11 @@ function isCushionSensor(sensorId) {
 
 // Setup socket listeners
 function setupSocketListeners() {
-    socket.on('emptyValues', newEmptyValues => {
+    window.socket.on('emptyValues', newEmptyValues => {
         patchEmptyValues(adpaterData('emptyValues', newEmptyValues));
     });
 
-    socket.on('values', result => {
+    window.socket.on('values', result => {
         if (!result || !emptyValues.length) return;
 
         const json_data = typeof result === 'string'
@@ -326,8 +343,8 @@ function setupSocketListeners() {
 
         if (valuesReceived <= acquisitions) {
             if (!isPaused) {
-                chartBack.update();
-                chartCushion.update();
+                chartSensors.update();
+                chartSensors.update();
             }
             valuesReceived = 11;
         }
@@ -338,12 +355,12 @@ function setupSocketListeners() {
     //document.querySelector('.btn-rtm').addEventListener('click', onClickActivate);
     //document.querySelector('.popupCloseButton').addEventListener('click', onClose);
 
-    /*socket.on('timeupdateDone', (values) => {
+    /*window.socket.on('timeupdateDone', (values) => {
         document.querySelectorAll('.btn-update, .btn-update-spinner').forEach($elem => $elem.classList.toggle('d-none'));
         timeupdate = false;
     });*/
 
-    socket.on('Notif', result => {
+    window.socket.on('Notif', result => {
         const json_data = adpaterData('data', result);
         if (json_data.RTM == 1) {
             btn_actived = true;
@@ -424,22 +441,22 @@ function initCharts() {
     } else {
         // ...existing hardcoded datasets...
         backDatasets = [{
-            label: 'C7 - Back Low Center',
+            label: 'C7',
             borderColor: 'rgb(255, 165, 2)',
             order: 0,
             data: []
         }, {
-            label: 'C8 - Back Center Right',
+            label: 'C8 ',
             borderColor: 'rgb(55, 66, 250)',
             order: 1,
             data: []
         }, {
-            label: 'C9 - Back Center Left',
+            label: 'C9',
             borderColor: 'rgb(46, 213, 115)',
             order: 2,
             data: []
         }, {
-            label: 'C10 - Back High Center',
+            label: 'C10',
             borderColor: 'rgba(47,53,66,1.000)',
             order: 3,
             data: []
@@ -478,269 +495,65 @@ function initCharts() {
         }];
     }
 
-    var ctx = document.getElementById('backSensorsChart').getContext('2d');
-    chartBack = new Chart(ctx, {
+    var sensorsEl = document.getElementById('sensorsChart');
+
+    if (!sensorsEl) {
+        console.warn('initCharts: sensorsChart canvas not found — creating stub chartSensors');
+        window.chartSensors = {
+            data: { labels: [], datasets: [] },
+            update: function() { /* no-op stub */ }
+        };
+        return;
+    }
+
+    var ctx = sensorsEl.getContext('2d');
+
+    window.chartSensors = new Chart(ctx, {
         type: 'line',
         data: {
             labels: [],
-            datasets: backDatasets
+            datasets: []
         },
         options: {
-            title: {
-                display: true,
-                text: 'Back Sensors',
-                fontSize: 16,
-                fontStyle: 'bold'
-            },
+            responsive: true,
+            animation: { duration: 0 },
             elements: {
-                point: {
-                    radius: 2,
-                    pointStyle: 'circle',
-                    borderWidth: 2
-                },
-                line: {
-                    fill: false
-                }
-            },
-            animation: {
-                duration: 0
-            },
-            hover: {
-                animationDuration: 0
-            },
-            responsiveAnimationDuration: 0,
-            legend: {
-                display: false,
-                position: 'left',
-                labels: {
-                    boxWidth: 20,
-                    fontSize: 14,
-                    fontStyle: 'bold',
-                    padding: 14
-                }
+                point: { radius: 2 },
+                line: { fill: false }
             },
             scales: {
-                xAxes: [{
-                    type: 'category',
-                    scaleLabel: {
-                        display: true,
-                        labelString: 'Acquisition Time',
-                        fontSize: 14,
-                        fontStyle: 'bold',
-                        padding: 6
-                    },
-                    gridLines: {
-                        tickMarkLength: 6
-                    },
-                    ticks: {
-                        fontSize: 12,
-                        fontStyle: 'bold',
-                        padding: 6
-                    }
-                }],
-                yAxes: [{
-                    type: 'linear',
-                    scaleLabel: {
-                        display: true,
-                        labelString: 'Back Sensors Abs Offset Values / 1000',
-                        fontSize: 14,
-                        fontStyle: 'bold',
-                        padding: 6
-                    },
-                    gridLines: {
-                        tickMarkLength: 6
-                    },
-                    ticks: {
-                        fontSize: 12,
-                        fontStyle: 'bold',
-                        padding: 6,
-                        suggestedMin: 0,
-                        suggestedMax: 20
-                    }
-                }]
-            },
-            tooltips: {
-                enabled: true,
-                mode: 'interpolate',
-                intersect: false,
-                position: 'nearest',
-                titleFontSize: 14,
-                titleSpacing: 4,
-                titleMarginBottom: 8,
-                bodyFontSize: 12,
-                bodyFontStyle: 'bold',
-                bodySpacing: 4,
-                footerMarginTop: 10,
-                xPadding: 10,
-                yPadding: 10
-            },
-            plugins: {
-                crosshair: {
-                    line: {
-                        color: '#000',
-                        width: 2
-                    },
-                    sync: {
-                        enabled: true,
-                        group: 1,
-                        suppressTooltips: false
-                    },
-                    zoom: {
-                        enabled: false
-                    }
+                x: {
+                    title: { display: true, text: 'Acquisition Time' }
                 },
-                zoom: {
-                    pan: {
-                        enabled: true,
-                        mode: 'xy'
-                    },
-                    zoom: {
-                        enabled: true,
-                        mode: 'x',
-                        speed: 1000,
-                        sensitivity: 0,
-                        onZoom: function ({ chart }) {
-                            document.querySelector('.btn-chart-resetZoom').style.display = "inline-block";
-                        }
-                    }
+                y: {
+                    title: { display: true, text: 'Sensor Values / 1000' }
                 }
             }
         }
     });
 
-    var ctx2 = document.getElementById('cushionSensorsChart').getContext('2d');
-    chartCushion = new Chart(ctx2, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: cushionDatasets
-        },
-        options: {
-            title: {
-                display: true,
-                text: 'Cushion Sensors',
-                fontSize: 16,
-                fontStyle: 'bold'
-            },
-            elements: {
-                point: {
-                    radius: 2,
-                    pointStyle: 'circle',
-                    borderWidth: 2
-                },
-                line: {
-                    fill: false
-                }
-            },
-            animation: {
-                duration: 0
-            },
-            hover: {
-                animationDuration: 0
-            },
-            responsiveAnimationDuration: 0,
-            legend: {
-                display: false,
-                position: 'left',
-                labels: {
-                    boxWidth: 20,
-                    fontSize: 14,
-                    fontStyle: 'bold',
-                    padding: 14
-                }
-            },
-            scales: {
-                xAxes: [{
-                    type: 'category',
-                    scaleLabel: {
-                        display: true,
-                        labelString: 'Acquisition Time',
-                        fontSize: 14,
-                        fontStyle: 'bold',
-                        padding: 6
-                    },
-                    gridLines: {
-                        tickMarkLength: 6
-                    },
-                    ticks: {
-                        fontSize: 12,
-                        fontStyle: 'bold',
-                        padding: 6
-                    }
-                }],
-                yAxes: [{
-                    type: 'linear',
-                    scaleLabel: {
-                        display: true,
-                        labelString: 'Cushion Sensors Abs Offset Values / 1000',
-                        fontSize: 14,
-                        fontStyle: 'bold',
-                        padding: 6
-                    },
-                    gridLines: {
-                        tickMarkLength: 6
-                    },
-                    ticks: {
-                        fontSize: 12,
-                        fontStyle: 'bold',
-                        padding: 6,
-                        suggestedMin: 0,
-                        suggestedMax: 20
-                    }
-                }]
-            },
-            tooltips: {
-                enabled: true,
-                mode: 'interpolate',
-                intersect: false,
-                position: 'nearest',
-                titleFontSize: 14,
-                titleSpacing: 4,
-                titleMarginBottom: 8,
-                bodyFontSize: 12,
-                bodyFontStyle: 'bold',
-                bodySpacing: 4,
-                footerMarginTop: 10,
-                xPadding: 10,
-                yPadding: 10
-            },
-            plugins: {
-                crosshair: {
-                    line: {
-                        color: '#000',
-                        width: 2
-                    },
-                    sync: {
-                        enabled: true,
-                        group: 1,
-                        suppressTooltips: false
-                    },
-                    zoom: {
-                        enabled: false
-                    }
-                },
-                zoom: {
-                    pan: {
-                        enabled: true,
-                        mode: 'xy',
-                    },
-                    zoom: {
-                        enabled: true,
-                        mode: 'x',
-                        speed: 1000,
-                        sensitivity: 0,
-                        onZoom: function ({ chart }) {
-                            document.querySelector('.btn-chart-resetZoom').style.display = "inline-block";
-                        }
-                    }
-                }
-            }
-        }
+    // Combine cushion + back datasets so all 10 sensors are displayed
+    const combinedDatasets = cushionDatasets.concat(backDatasets);
+    window.chartSensors.data.datasets = combinedDatasets;
+
+    // Rebuild runtime mapping from sensorId -> dataset index
+    OrderSensorCushion = {};
+    cushionSensorOrder.forEach((sensorId, newIndex) => {
+        OrderSensorCushion[sensorId] = newIndex;
     });
+
+    OrderSensorBack = {};
+    backSensorOrder.forEach((sensorId, idx) => {
+        OrderSensorBack[sensorId] = cushionDatasets.length + idx;
+    });
+
+    console.log('Final OrderSensorBack:', OrderSensorBack);
+    console.log('Final OrderSensorCushion:', OrderSensorCushion);
+
+    window.chartSensors.update();
+
+
 }
-
-
-
 function onMonitoring() {
     if (oh_class_global == 0) {
         document.getElementById('popuptText').innerHTML = 'Seat is EMPTY\n can\'t start ASANA';
@@ -756,10 +569,10 @@ function onClickActivate() {
             document.getElementById('popuptText').innerHTML = 'Seat is EMPTY\n can\'t start ASANA';
             $('.hover_bkgr_fricc').show();
         } else {	
-            socket.emit('Activate_RTM','P1');
+            window.socket.emit('Activate_RTM','P1');
         }
     } else {
-        socket.emit('Stop_RTM_global_view');
+        window.socket.emit('Stop_RTM_global_view');
     }
 }
 
@@ -844,16 +657,16 @@ function updateChartsValues(rawValue, sensorId) {
         var idx = OrderBack[sensorId];
         
         // Validate that idx exists and is within bounds
-        if (typeof idx !== 'undefined' && chartBack && chartBack.data && chartBack.data.datasets[idx]) {
-            var chartBackValuesLength = chartBack.data.datasets[idx].data.length;
+        if (typeof idx !== 'undefined' && chartSensors && chartSensors.data && chartSensors.data.datasets[idx]) {
+            var chartSensorsValuesLength = chartSensors.data.datasets[idx].data.length;
 
-            if (chartBackValuesLength < maxChartValues) {
-                chartBack.data.datasets[idx].data.push(Math.abs(value / 1000));
+            if (chartSensorsValuesLength < maxChartValues) {
+                chartSensors.data.datasets[idx].data.push(Math.abs(value / 1000));
             } else {
-                var overflow = chartBackValuesLength - maxChartValues;
-                var newValuesArray = chartBack.data.datasets[idx].data.slice(overflow + 1);
-                chartBack.data.datasets[idx].data = newValuesArray;
-                chartBack.data.datasets[idx].data.push(Math.abs(value / 1000));
+                var overflow = chartSensorsValuesLength - maxChartValues;
+                var newValuesArray = chartSensors.data.datasets[idx].data.slice(overflow + 1);
+                chartSensors.data.datasets[idx].data = newValuesArray;
+                chartSensors.data.datasets[idx].data.push(Math.abs(value / 1000));
             }
         } else {
             console.warn(`Backrest sensor ${sensorId} (dataset idx: ${idx}) - Chart not ready`);
@@ -864,16 +677,16 @@ function updateChartsValues(rawValue, sensorId) {
         var idx = OrderCushion[sensorId];
         
         // Validate that idx exists and is within bounds
-        if (typeof idx !== 'undefined' && chartCushion && chartCushion.data && chartCushion.data.datasets[idx]) {
-            var chartCushionValuesLength = chartCushion.data.datasets[idx].data.length;
+        if (typeof idx !== 'undefined' && chartSensors && chartSensors.data && chartSensors.data.datasets[idx]) {
+            var chartSensorsValuesLength = chartSensors.data.datasets[idx].data.length;
 
-            if (chartCushionValuesLength < maxChartValues) {
-                chartCushion.data.datasets[idx].data.push(Math.abs(value / 1000));
+            if (chartSensorsValuesLength < maxChartValues) {
+                chartSensors.data.datasets[idx].data.push(Math.abs(value / 1000));
             } else {
-                var overflow = chartCushionValuesLength - maxChartValues;
-                var newValuesArray = chartCushion.data.datasets[idx].data.slice(overflow + 1);
-                chartCushion.data.datasets[idx].data = newValuesArray;
-                chartCushion.data.datasets[idx].data.push(Math.abs(value / 1000));
+                var overflow = chartSensorsValuesLength - maxChartValues;
+                var newValuesArray = chartSensors.data.datasets[idx].data.slice(overflow + 1);
+                chartSensors.data.datasets[idx].data = newValuesArray;
+                chartSensors.data.datasets[idx].data.push(Math.abs(value / 1000));
             }
         } else {
             console.warn(`Cushion sensor ${sensorId} (dataset idx: ${idx}) - Chart not ready`);
@@ -884,27 +697,27 @@ function updateChartsValues(rawValue, sensorId) {
 }
 
 function updateChartsLabels(timeLabel) {
-    var chartBackLabelsLength = chartBack.data.labels.length;
-    var chartCushionLabelsLength = chartCushion.data.labels.length;
+    var chartSensorsLabelsLength = chartSensors.data.labels.length;
+    var chartSensorsLabelsLength = chartSensors.data.labels.length;
 
     var maxChartLabels = duration * acquisitions;
 
-    if (chartBackLabelsLength < maxChartLabels) {
-        chartBack.data.labels.push(timeLabel);
+    if (chartSensorsLabelsLength < maxChartLabels) {
+        chartSensors.data.labels.push(timeLabel);
     } else {
-        var overflow = chartBackLabelsLength - maxChartLabels;
-        var newLabelsArray = chartBack.data.labels.slice(overflow + 1);
-        chartBack.data.labels = newLabelsArray;
-        chartBack.data.labels.push(timeLabel);
+        var overflow = chartSensorsLabelsLength - maxChartLabels;
+        var newLabelsArray = chartSensors.data.labels.slice(overflow + 1);
+        chartSensors.data.labels = newLabelsArray;
+        chartSensors.data.labels.push(timeLabel);
     }
 
-    if (chartCushionLabelsLength < maxChartLabels) {
-        chartCushion.data.labels.push(timeLabel);
+    if (chartSensorsLabelsLength < maxChartLabels) {
+        chartSensors.data.labels.push(timeLabel);
     } else {
-        var overflow = chartCushionLabelsLength - maxChartLabels;
-        var newLabelsArray = chartCushion.data.labels.slice(overflow + 1);
-        chartCushion.data.labels = newLabelsArray;
-        chartCushion.data.labels.push(timeLabel);
+        var overflow = chartSensorsLabelsLength - maxChartLabels;
+        var newLabelsArray = chartSensors.data.labels.slice(overflow + 1);
+        chartSensors.data.labels = newLabelsArray;
+        chartSensors.data.labels.push(timeLabel);
     }
 }
 

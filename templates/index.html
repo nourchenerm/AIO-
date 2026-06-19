@@ -7,10 +7,11 @@
     <link rel="stylesheet" href="../static/css/bootstrap.css" />
     <script src="../static/js/moment.min.js"></script>
     <script src="../static/js/jquery-3.5.1.min.js"></script>
-    <script src="../static/js/socket.io.min.js"></script>
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
     <script  src="../static/js/Chart.min.js"> </script>
    <script src="../static/js/global_view.js"></script>
    <script src="../static/js/socket_live.js"></script>
+    
     <title>Postural Monitoring</title>
     <style>
         body {
@@ -49,10 +50,7 @@
             min-height: 0;
             border: 4px solid #0927D5;
             border-top-width: 0px;
-            background-image: url(../static/img/backgrounf_chart.png);
-            background-size: 100%;
-            background-repeat: no-repeat;
-            background-position: center 25%;
+            /* removed background image for clarity */
         }
         /* TOP: Back + Cushion side by side */
         .courbe {
@@ -551,13 +549,9 @@
 
                 <!-- TOP : Back & Cushion côte à côte -->
                 <div class="courbe">
-                    <div class="courbe_1">
-                        <span class="chart-label">Back Sensors</span>
-                        <canvas id="backSensorsChart" aria-label="Back Sensors Chart" role="img"></canvas>
-                    </div>
-                   <div class="courbe_3">
-                        <span class="chart-label">Cushion Sensors</span>
-                        <canvas id="cushionSensorsChart" aria-label="Cushion Sensors Chart" role="img"></canvas>
+                    <div class="courbe_1" style="flex:1">
+                        <span class="chart-label">Back + Cushion Sensors</span>
+                        <canvas id="sensorsChart" style="display:block; width:100%; height:300px; margin-top:8px;"></canvas>
                     </div>
                 </div>
 
@@ -568,15 +562,11 @@
                         <div class="analysis-legend">
                             <span class="leg-item">
                                 <span class="leg-swatch" style="background:#1a7abf;"></span>
-                                Real weight ±5 kg
+                                Real weight
                             </span>
                             <span class="leg-item">
                                 <span class="leg-swatch" style="background:#e8a020;"></span>
-                                Dataset mean ±5 kg
-                            </span>
-                            <span class="leg-item">
-                                <span class="leg-swatch" style="background:#d42020;"></span>
-                                Predicted ±5 kg
+                                Dataset mean
                             </span>
                         </div>
                     </div>
@@ -598,11 +588,18 @@
 
                 <!-- Logo + titre (même style qu'Asana Coach) -->
                 <div class="predict-logo-row">
-                    <img src="../static/img/asna_button.PNG" alt="predict logo">
+                    <!--<img src="../static/img/asna_button.PNG" alt="predict logo">-->
                     <div>
                         <div class="predict-title">Weight Predictor&#174;</div>
                         <div class="predict-subtitle">Your personal weight assistant</div>
                     </div>
+                </div>
+
+                <!-- Champ poids réel -->
+                <!-- Champ nom personne -->
+                <div class="weight-input-row">
+                    <label>Name :</label>
+                    <input type="text" id="personNameInput" placeholder="Name" />
                 </div>
 
                 <!-- Champ poids réel -->
@@ -661,6 +658,7 @@
        ========================================================= */
     function runWeightPredict() {
 
+        var personName = (document.getElementById('personNameInput') && document.getElementById('personNameInput').value) || null;
         var realW = parseFloat(document.getElementById('realWeightInput').value);
 
         if (!realW || realW <= 0) {
@@ -668,16 +666,17 @@
             return;
         }
 
-        // Sauvegarder le poids réel pour calculer l'erreur après
+        // Sauvegarder le poids réel et le nom pour calculer l'erreur après
         window.currentRealWeight = realW;
+        if (personName) window.currentPerson = personName;
 
         // UI
         document.getElementById('spinner').style.display = 'block';
         document.getElementById('predictResults').style.display = 'none';
         document.getElementById('ocsResultRow').style.display = 'none';
 
-        // Demande au backend de lancer la prédiction
-        socket.emit('start_prediction');
+        // Demande au backend de lancer la prédiction en fournissant le nom
+        socket.emit('start_prediction', { person_name: personName });
 }
 
     /* =========================================================
@@ -691,76 +690,34 @@
        via socket events from your backend                              */
     var analysisLabels = ['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10'];
 
-    var realW    = [68, 70, 71, 69, 72, 73, 71, 70, 72, 72];
-    var meanD    = [65, 66, 67, 66, 68, 67, 66, 67, 68, 68];
-    var predW    = [67, 69, 70, 68, 71, 72, 70, 69, 71, 71];
-
-    var realUp   = realW.map(function(v){ return v + 5; });
-    var realDn   = realW.map(function(v){ return v - 5; });
-    var meanUp   = meanD.map(function(v){ return v + 5; });
-    var meanDn   = meanD.map(function(v){ return v - 5; });
-    var predUp   = predW.map(function(v){ return v + 5; });
-    var predDn   = predW.map(function(v){ return v - 5; });
-
     var aCtx = document.getElementById('weightAnalysisChart').getContext('2d');
-    window.weightAnalysisChart = new Chart(aCtx, {
+        window.weightAnalysisChart = new Chart(aCtx, {
         type: 'line',
         data: {
             labels: analysisLabels,
             datasets: [
-                /* --- Real weight band fill --- */
-                { label: 'Real +5', data: realUp,
-                  borderColor: 'rgba(26,122,191,0)', backgroundColor: 'rgba(26,122,191,0.15)',
-                  borderWidth: 0, pointRadius: 0, fill: '+1', tension: 0.3 },
-                { label: 'Real -5', data: realDn,
-                  borderColor: 'rgba(26,122,191,0)', backgroundColor: 'rgba(26,122,191,0.15)',
-                  borderWidth: 0, pointRadius: 0, fill: false, tension: 0.3 },
-                /* --- Real weight main line --- */
-                { label: 'Real weight', data: realW,
-                  borderColor: '#1a7abf', backgroundColor: 'transparent',
-                  borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: '#1a7abf',
-                  fill: false, tension: 0.3 },
-
-                /* --- Dataset mean band fill --- */
-                { label: 'Mean +5', data: meanUp,
-                  borderColor: 'rgba(232,160,32,0)', backgroundColor: 'rgba(232,160,32,0.15)',
-                  borderWidth: 0, pointRadius: 0, fill: '+1', tension: 0.3 },
-                { label: 'Mean -5', data: meanDn,
-                  borderColor: 'rgba(232,160,32,0)', backgroundColor: 'rgba(232,160,32,0.15)',
-                  borderWidth: 0, pointRadius: 0, fill: false, tension: 0.3 },
-                /* --- Dataset mean main line --- */
-                { label: 'Dataset mean', data: meanD,
-                  borderColor: '#e8a020', backgroundColor: 'transparent',
-                  borderWidth: 2, borderDash: [7,4],
-                  pointRadius: 3, pointStyle: 'rect', pointBackgroundColor: '#e8a020',
-                  fill: false, tension: 0.3 },
-
-                /* --- Predicted band fill --- */
-                { label: 'Pred +5', data: predUp,
-                  borderColor: 'rgba(212,32,32,0)', backgroundColor: 'rgba(212,32,32,0.13)',
-                  borderWidth: 0, pointRadius: 0, fill: '+1', tension: 0.3 },
-                { label: 'Pred -5', data: predDn,
-                  borderColor: 'rgba(212,32,32,0)', backgroundColor: 'rgba(212,32,32,0.13)',
-                  borderWidth: 0, pointRadius: 0, fill: false, tension: 0.3 },
-                /* --- Predicted main line --- */
-                { label: 'Predicted', data: predW,
-                  borderColor: '#d42020', backgroundColor: 'transparent',
-                  borderWidth: 2.5, borderDash: [4,3],
-                  pointRadius: 4, pointStyle: 'triangle', pointBackgroundColor: '#d42020',
-                  fill: false, tension: 0.3 }
+                                { label: 'Real weight', data: Array(10).fill(null),
+                                    borderColor: '#1a7abf', backgroundColor: 'transparent',
+                                    borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: '#1a7abf',
+                                    fill: false, tension: 0.3 },
+                                { label: 'Dataset mean', data: Array(10).fill(null),
+                                    borderColor: '#e8a020', backgroundColor: 'transparent',
+                                    borderWidth: 2, borderDash: [6,4], pointRadius: 3, pointStyle: 'rect', pointBackgroundColor: '#e8a020',
+                                    fill: false, tension: 0.3 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false },
+                legend: { display: true, position: 'top' },
                 tooltip: {
                     callbacks: {
                         label: function(ctx) {
-                            var hidden = ['Real +5','Real -5','Mean +5','Mean -5','Pred +5','Pred -5'];
-                            if (hidden.indexOf(ctx.dataset.label) !== -1) return null;
-                            return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + ' kg';
+                            if (ctx.dataset.label && ctx.parsed && ctx.parsed.y != null) {
+                                return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + ' kg';
+                            }
+                            return null;
                         }
                     }
                 }
@@ -772,7 +729,7 @@
                     grid: { color: 'rgba(9,39,213,0.08)' }
                 },
                 x: {
-                    title: { display: true, text: 'Sample', font: { size: 10 }, color: '#0927D5' },
+                    title: { display: true, text: 'Sensor', font: { size: 10 }, color: '#0927D5' },
                     ticks: { font: { size: 9 }, color: '#0927D5' },
                     grid: { color: 'rgba(9,39,213,0.08)' }
                 }
@@ -780,21 +737,13 @@
         }
     });
 
-    /* Call this from your socket/backend to update the analysis chart:
-       updateAnalysisChart(realWeightArray, datasetMeanArray, predictedArray)  */
-    window.updateAnalysisChart = function(realArr, meanArr, predArr) {
+    // Simpler update: provide arrays of length 10 for realArr and meanArr
+    window.updateAnalysisChart = function(realArr, meanArr) {
         var c = window.weightAnalysisChart;
         var labels = realArr.map(function(_,i){ return 'S'+(i+1); });
         c.data.labels = labels;
-        c.data.datasets[0].data = realArr.map(function(v){ return v+5; });
-        c.data.datasets[1].data = realArr.map(function(v){ return v-5; });
-        c.data.datasets[2].data = realArr;
-        c.data.datasets[3].data = meanArr.map(function(v){ return v+5; });
-        c.data.datasets[4].data = meanArr.map(function(v){ return v-5; });
-        c.data.datasets[5].data = meanArr;
-        c.data.datasets[6].data = predArr.map(function(v){ return v+5; });
-        c.data.datasets[7].data = predArr.map(function(v){ return v-5; });
-        c.data.datasets[8].data = predArr;
+        c.data.datasets[0].data = realArr.map(function(v){ return v; });
+        c.data.datasets[1].data = meanArr.map(function(v){ return v; });
         c.update();
     };
 
