@@ -38,8 +38,9 @@ let configReady = false;
 let visibleSensors = { backrest: [], cushion: [] };
 
 // add globals for runtime maps
-let OrderSensorBack = {};
-let OrderSensorCushion = {};
+
+window.OrderSensorBack = {};
+window.OrderSensorCushion = {};
 
 // On DOM Loaded
 window.addEventListener("DOMContentLoaded", (event) => {
@@ -427,13 +428,14 @@ function initCharts() {
         });
         
         // Rebuild OrderBack and OrderCushion to map sensor IDs to their new dataset positions
-        OrderSensorBack = {};
-        OrderSensorCushion = {};
-        backSensorOrder.forEach((sensorId, newIndex) => {
-            OrderSensorBack[sensorId] = newIndex;
-        });
+        window.OrderSensorCushion = {};
         cushionSensorOrder.forEach((sensorId, newIndex) => {
-            OrderSensorCushion[sensorId] = newIndex;
+            window.OrderSensorCushion[sensorId] = newIndex;
+        });
+
+        window.OrderSensorBack = {};
+        backSensorOrder.forEach((sensorId, idx) => {
+            window.OrderSensorBack[sensorId] = cushionDatasets.length + idx;
         });
         
         console.log('Updated OrderSensorBack:', OrderSensorBack);

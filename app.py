@@ -12,51 +12,11 @@ import threading
 import time
 import os
 import csv
+from network.protocol_factory import ProtocolFactory 
 
-class TCPClient:
 
-    def __init__(self, host, port, callback):
-        self.host = host
-        self.port = port
-        self.callback = callback
 
-    def start(self):
-        threading.Thread(target=self.run, daemon=True).start()
 
-    def run(self):
-        # Boucle de connexion/reconnexion robuste :
-        while True:
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                print(f"Connexion TCP vers {self.host}:{self.port}")
-                sock.connect((self.host, self.port))
-
-                print("TCP connecté")
-
-                buffer = ""
-
-                while True:
-                    data = sock.recv(4096)
-                    if not data:
-                        print("TCP: connexion fermée par le pair, tentative de reconnexion...")
-                        break
-
-                    buffer += data.decode()
-
-                    while '\n' in buffer:
-                        line, buffer = buffer.split('\n', 1)
-                        if line.strip():
-                            try:
-                                self.callback(line)
-                            except Exception as cb_e:
-                                print(f"Erreur dans le callback lors du traitement d'une ligne : {cb_e}")
-
-            except Exception as e:
-                print(f"Erreur de connexion TCP: {e}. Reconnexion dans 1s...")
-
-            # Attendre avant de retenter la connexion
-            time.sleep(1)
-# Flask
 app = Flask(__name__)
 # client_manager / serveur explicite : on force flask-socketio à servir
 # son propre client JS embarqué (toujours compatible avec la version
@@ -189,11 +149,28 @@ def dataset_zone_mean():
         else:
             return jsonify({"error": f"default csv '{default_csv}' not found in data directory"}), 400
 
+    # remember which CSV we will report back (basename)
+    selected_csv = os.path.basename(files_to_scan[0]) if files_to_scan else None
+
     for path in files_to_scan:
         fname = os.path.basename(path)
         try:
             with open(path, 'r') as fh:
                 reader = csv.DictReader(fh)
+                # detect sensor column naming in this CSV
+                fn = reader.fieldnames or []
+                # prefer C1_offset..C10_offset if present
+                offset_cols = [f'C{i}_offset' for i in range(1, 11)]
+                simple_cols = ['C1','C2','C3','C4','C5','C6','C7','C8','C9','C10']
+                if all(c in fn for c in offset_cols):
+                    sensor_cols_file = offset_cols
+                elif all(c in fn for c in simple_cols):
+                    sensor_cols_file = simple_cols
+                else:
+                    # try to pick whichever variant exists
+                    sensor_cols_file = [c for c in offset_cols if c in fn]
+                    if len(sensor_cols_file) != 10:
+                        sensor_cols_file = [c for c in simple_cols if c in fn]
                 for row in reader:
                     try:
                         wt = float(row.get('Weight') or row.get('Weight') or 0)
@@ -217,10 +194,11 @@ def dataset_zone_mean():
                                 row_person = person
                         if row_person is None or row_person.lower() != person.strip().lower():
                             continue
-                    # accumulate sensors
+                    # accumulate sensors (use per-file detected names if available)
                     ok = True
                     vals = []
-                    for i, col in enumerate(sensor_cols):
+                    cols_to_use = sensor_cols_file if sensor_cols_file and len(sensor_cols_file) == 10 else sensor_cols
+                    for i, col in enumerate(cols_to_use):
                         try:
                             v = float(row.get(col, 0))
                         except Exception:
@@ -237,12 +215,12 @@ def dataset_zone_mean():
 
     if count == 0:
         # no samples in zone
-        return jsonify({"mean": None, "n": 0})
+        return jsonify({"mean": None, "n": 0, "csv": selected_csv})
 
     means = [s / count for s in sums]
     # scale like frontend (chart uses /1000)
     means_scaled = [m / 1000.0 for m in means]
-    return jsonify({"mean": means_scaled, "n": count})
+    return jsonify({"mean": means_scaled, "n": count, "csv": selected_csv})
 if __name__ == "__main__":
 
     # Charger config TCP
@@ -254,7 +232,7 @@ if __name__ == "__main__":
         "SVR_lt120": "exported_models/SVR_final_lt120.pkl",
         "weight_SVR":"exported_models/weight_pred_SVR.pkl",
         "weight_pred":"exported_models/weight_pred.pkl",
-        #"classification":"exported_models/RandomForest_classification.pkl"
+        "classification":"exported_models/RandomForest_classification.pkl"
 
         
         
@@ -266,13 +244,10 @@ if __name__ == "__main__":
         model_paths=MODEL_PATHS,
         socketio=socketio
     )
-    tcp_client = TCPClient(
-        host="0.0.0.0",
-        port=5001,
-        callback=handler.on_aio_receive
-    )
+  
 
-    tcp_client.start()
+    aio_protocol = ProtocolFactory.create_instance(config.get('aio_protocol'))
+    aio_protocol.on_receive = handler.on_aio_receive
     @socketio.on('start_prediction')
     def handle_start_prediction(data=None):
         # data may contain {'person_name': '<name>'}
@@ -288,12 +263,12 @@ if __name__ == "__main__":
     #handler.aio_protocol.on_receive = handler.on_aio_receive
     print("C")
 
-    print("Frontend disponible sur http://localhost:5000")
+    print("Frontend disponible sur http://localhost:5001")
 
     socketio.run(
         app,
         host="0.0.0.0",
-        port=5000,
+        port=5001,
         debug=True,
         use_reloader=False,  # le reloader re-fork le process et peut
                               # désynchroniser le monkey_patch() d'eventlet
