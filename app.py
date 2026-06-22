@@ -149,9 +149,6 @@ def dataset_zone_mean():
         else:
             return jsonify({"error": f"default csv '{default_csv}' not found in data directory"}), 400
 
-    # remember which CSV we will report back (basename)
-    selected_csv = os.path.basename(files_to_scan[0]) if files_to_scan else None
-
     for path in files_to_scan:
         fname = os.path.basename(path)
         try:
@@ -215,12 +212,12 @@ def dataset_zone_mean():
 
     if count == 0:
         # no samples in zone
-        return jsonify({"mean": None, "n": 0, "csv": selected_csv})
+        return jsonify({"mean": None, "n": 0})
 
     means = [s / count for s in sums]
     # scale like frontend (chart uses /1000)
     means_scaled = [m / 1000.0 for m in means]
-    return jsonify({"mean": means_scaled, "n": count, "csv": selected_csv})
+    return jsonify({"mean": means_scaled, "n": count})
 if __name__ == "__main__":
 
     # Charger config TCP

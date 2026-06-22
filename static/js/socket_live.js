@@ -170,25 +170,21 @@
     try {
         const realW = window.currentRealWeight || null;
         if (realW) {
-            // request both CSVs but assign results based on the backend-echoed csv name
-            const urls = [
-                '/api/dataset_zone_mean?weight=' + encodeURIComponent(realW) + '&margin=5&csv=04_df_feature.csv',
-                '/api/dataset_zone_mean?weight=' + encodeURIComponent(realW) + '&margin=5&csv=04_df_feature_all.csv'
-            ];
-            const responses = await Promise.all(urls.map(u => fetch(u)));
-            for (const resp of responses) {
-                if (!resp.ok) continue;
-                try {
-                    const body = await resp.json();
-                    if (!body || !body.mean || !Array.isArray(body.mean) || body.mean.length !== 10) continue;
-                    const csv = (body.csv || '').toLowerCase();
-                    if (csv.indexOf('all') !== -1) {
-                        allPosMeanSensors = body.mean;
-                    } else {
-                        nominalMeanSensors = body.mean;
-                    }
-                } catch (e) {
-                    console.warn('Error parsing dataset mean response', e);
+            const [respNominal, respAll] = await Promise.all([
+                fetch('/api/dataset_zone_mean?weight=' + encodeURIComponent(realW) + '&margin=5&csv=04_df_feature.csv'),
+                fetch('/api/dataset_zone_mean?weight=' + encodeURIComponent(realW) + '&margin=5&csv=04_df_feature_all.csv')
+            ]);
+
+            if (respNominal.ok) {
+                const body = await respNominal.json();
+                if (body && body.mean && Array.isArray(body.mean) && body.mean.length === 10) {
+                    nominalMeanSensors = body.mean;
+                }
+            }
+            if (respAll.ok) {
+                const body = await respAll.json();
+                if (body && body.mean && Array.isArray(body.mean) && body.mean.length === 10) {
+                    allPosMeanSensors = body.mean;
                 }
             }
         } else if (window.meanD && window.meanD.length === 10) {
