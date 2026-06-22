@@ -1,4 +1,4 @@
-//const host = 'http://192.168.1.8:5000/'
+// const host = 'http://192.168.1.8:5000/'
 // GLOBAL VAR
 window.socket = io();
 

@@ -38,6 +38,30 @@ def _gini(row):
 
 
 # ══════════════════════════════════════════════════════════════
+# CONFIGURATION DES MODÈLES ET PRÉTRAITEMENTS
+# ══════════════════════════════════════════════════════════════
+
+# Modèles qui utilisent le prétraitement FAV (avec toutes les features)
+# ══════════════════════════════════════════════════════════════
+# CONFIGURATION DES MODÈLES ET PRÉTRAITEMENTS
+# ══════════════════════════════════════════════════════════════
+
+# Modèles qui utilisent le prétraitement FAV (avec toutes les features)
+FAV_MODELS = ['fav', 'lightgbm_final_fav', 'fav_model', 'LightGBM_fav']  # ← AJOUTER 'fav'
+
+# Modèles qui utilisent le prétraitement standard (sans features additionnelles)
+STANDARD_MODELS = ['weight_SVR', 'SVR_lt120', 'weight_pred', 'LightGBM', 'SVR', 'Dummy']
+def get_preprocessing_function(model_key):
+    """Retourne la fonction de prétraitement appropriée selon le modèle"""
+    # Vérification insensible à la casse
+    model_key_lower = model_key.lower()
+    for fav_model in FAV_MODELS:
+        if fav_model.lower() in model_key_lower or model_key_lower in fav_model.lower():
+            return preprocess_fav
+    return preprocess_standard
+
+
+# ══════════════════════════════════════════════════════════════
 # 1. LIRE LES DONNÉES DU SIÈGE
 # ══════════════════════════════════════════════════════════════
 def save_frame_to_csv(person_id: str, frame_idx: int, raw: np.ndarray,
@@ -72,19 +96,36 @@ def start_keyboard_listener(callback):
     t.start()
 
 
-def predict_all_models(X: np.ndarray, models: dict) -> dict:
+def predict_all_models(X: np.ndarray, models: dict, model_keys: list = None) -> dict:
+    if model_keys is None:
+        model_keys = list(models.keys())
+    
     predictions = {}
-    for model_name, model in models.items():
+    for model_name in model_keys:
+        model = models.get(model_name)
+        if model is None:
+            continue
+            
         try:
-            pred_frames = model.predict(X)
+            # 🔥 Détection dynamique : si le nom contient 'fav'
+            if 'fav' in model_name.lower():
+                X_preprocessed = preprocess_fav(X)
+                preprocess_type = 'FAV'
+            else:
+                X_preprocessed = preprocess_standard(X)
+                preprocess_type = 'standard'
+            
+            pred_frames = model.predict(X_preprocessed)
             pred_final = float(trim_mean(pred_frames, proportiontocut=0.1))
             predictions[model_name] = round(pred_final, 1)
-            print(f"  ✅ {model_name} → {pred_final:.1f} kg")
+            print(f"  ✅ {model_name} → {pred_final:.1f} kg (preprocessing: {preprocess_type})")
+            
         except Exception as e:
             import traceback
-            print(f"  ❌ {model_name} ERREUR COMPLÈTE :")
+            print(f"  ❌ {model_name} ERREUR :")
             traceback.print_exc()
             predictions[model_name] = None
+            
     return predictions
 
 
@@ -132,11 +173,95 @@ def detect_ods(raw: np.ndarray, cushion_threshold: float = 20000.0) -> tuple:
     return ods_status, cushion_sum
 
 
-def preprocess(raw: np.ndarray) -> np.ndarray:
+# ══════════════════════════════════════════════════════════════
+# 2. FONCTIONS DE PRÉTRAITEMENT
+# ══════════════════════════════════════════════════════════════
+
+def preprocess_fav(raw: np.ndarray) -> np.ndarray:
     """
-    Prend le raw (N_frames, 10) et retourne X (N_frames, 22)
-    avec exactement les mêmes features que l'entraînement.
+    Prétraitement pour le modèle FAV.
+    DOIT correspondre EXACTEMENT aux features utilisées lors de l'entraînement.
     """
+    # ⚠️ ATTENTION : Le modèle utilise SEULEMENT C1 à C6 pour les SENSORS
+    SENSORS = [f'C{i}_offset' for i in range(1, 7)]  # ← C1 à C6 seulement !
+    ALL_SENSORS = [f'C{i}_offset' for i in range(1, 11)]  # ← C1 à C10 pour les calculs
+    
+    epsilon = 1e-5
+    
+    # Créer le DataFrame avec TOUS les capteurs (C1 à C10)
+    df = pd.DataFrame(raw, columns=ALL_SENSORS)
+
+    sensor_coords = {
+        'C1_offset': (-1.0, -0.5),
+        'C2_offset': (1.0, -0.5),
+        'C3_offset': (0.0, 0.0),
+        'C4_offset': (-0.5, 0.2),
+        'C5_offset': (0.5, 0.2),
+        'C6_offset': (0.0, 0.8),
+        'C7_offset': (0.0, 1.0),
+        'C8_offset': (0.5, 1.5),
+        'C9_offset': (-0.5, 1.5),
+        'C10_offset': (0.0, 2.0),
+    }
+
+    CUSHION = ['C1_offset', 'C2_offset', 'C3_offset', 'C4_offset', 'C5_offset', 'C6_offset']
+    BACK = ['C7_offset', 'C8_offset', 'C9_offset', 'C10_offset']
+    LEFT = ['C1_offset', 'C4_offset', 'C9_offset']
+    RIGHT = ['C2_offset', 'C5_offset', 'C8_offset']
+
+    # ⚠️ Le total utilise SEULEMENT C1 à C6 (comme dans l'entraînement)
+    total = df[SENSORS].sum(axis=1).replace(0, np.nan)
+
+    # Features de base
+    df['total_pressure'] = df[SENSORS].sum(axis=1)
+    df['cushion_pressure'] = df[CUSHION].sum(axis=1)
+    df['back_pressure'] = df[BACK].sum(axis=1)
+    df['left_pressure'] = df[LEFT].sum(axis=1)
+    df['right_pressure'] = df[RIGHT].sum(axis=1)
+
+    # Features statistiques
+    threshold = total * 0.05
+    df["active_sensors_adaptive"] = (df[SENSORS].gt(threshold, axis=0)).sum(axis=1)
+    df['kurt_offsets'] = df[SENSORS].kurt(axis=1)
+    df['pressure_entropy'] = df[SENSORS].apply(_entropy, axis=1)
+    df['gini_pressure'] = df[SENSORS].apply(_gini, axis=1)
+
+    # Features COG (utilise TOUS les capteurs C1 à C10)
+    df['cog_x'] = sum(
+        df[s] * sensor_coords[s][0] for s in ALL_SENSORS
+    ) / (total + epsilon)
+
+    df['cog_y'] = sum(
+        df[s] * sensor_coords[s][1] for s in ALL_SENSORS
+    ) / (total + epsilon)
+
+    # Asymétrie
+    df['lr_asymmetry'] = (
+        df[LEFT].sum(axis=1) - df[RIGHT].sum(axis=1)
+    ) / (total + epsilon)
+
+    # ⚠️ IMPORTANT : Features dans le BON ORDRE pour correspondre au modèle
+    FEAT_REG = (SENSORS +  # C1_offset à C6_offset (6 features)
+                ["total_pressure", "cushion_pressure", "back_pressure",
+                 "left_pressure", "right_pressure", "active_sensors_adaptive",
+                 "kurt_offsets", "pressure_entropy", "gini_pressure",
+                 "lr_asymmetry", "C10_offset",  # ← C10_offset est inclus ici
+                 "cog_x", "cog_y"])  # ← COG features
+
+    # Vérifier que toutes les features existent
+    missing = [f for f in FEAT_REG if f not in df.columns]
+    if missing:
+        print(f"⚠️ Features manquantes: {missing}")
+    
+    X = df[FEAT_REG].values.astype(np.float32)
+    
+    print(f"  📊 preprocess_fav: {X.shape[1]} features")
+    print(f"  📊 Features: {FEAT_REG}")
+    
+    return X
+
+
+def preprocess_standard(raw: np.ndarray) -> np.ndarray:
     SENSORS = [f'C{i}_offset' for i in range(1, 11)]
     epsilon = 1e-5
 
@@ -162,19 +287,21 @@ def preprocess(raw: np.ndarray) -> np.ndarray:
 
     total = df[SENSORS].sum(axis=1).replace(0, np.nan)
 
+    # Features de base
     df['total_pressure'] = df[SENSORS].sum(axis=1)
     df['cushion_pressure'] = df[CUSHION].sum(axis=1)
     df['back_pressure'] = df[BACK].sum(axis=1)
     df['left_pressure'] = df[LEFT].sum(axis=1)
     df['right_pressure'] = df[RIGHT].sum(axis=1)
 
+    # Features statistiques
     threshold = total * 0.05
     df["active_sensors_adaptive"] = (df[SENSORS].gt(threshold, axis=0)).sum(axis=1)
-
     df['kurt_offsets'] = df[SENSORS].kurt(axis=1)
     df['pressure_entropy'] = df[SENSORS].apply(_entropy, axis=1)
     df['gini_pressure'] = df[SENSORS].apply(_gini, axis=1)
 
+    # Features COG
     df['cog_x'] = sum(
         df[s] * sensor_coords[s][0] for s in SENSORS
     ) / (total + epsilon)
@@ -183,19 +310,28 @@ def preprocess(raw: np.ndarray) -> np.ndarray:
         df[s] * sensor_coords[s][1] for s in SENSORS
     ) / (total + epsilon)
 
+    # Asymétrie
     df['lr_asymmetry'] = (
         df[LEFT].sum(axis=1) - df[RIGHT].sum(axis=1)
     ) / (total + epsilon)
 
+    # Liste des features pour FAV
     FEAT_REG = (SENSORS +
-                ['total_pressure', 'cushion_pressure', 'back_pressure',
-                 'left_pressure', 'right_pressure', 'active_sensors_adaptive',
-                 'kurt_offsets', 'pressure_entropy', 'gini_pressure',
-                 'lr_asymmetry', 'cog_x', 'cog_y'])
+                ["total_pressure", "cushion_pressure", "back_pressure",
+                 "left_pressure", "right_pressure", "active_sensors_adaptive",
+                 "kurt_offsets", "pressure_entropy", "gini_pressure",
+                 "lr_asymmetry", "cog_x", "cog_y"])
 
     X = df[FEAT_REG].values.astype(np.float32)
-
     return X
+
+
+def preprocess(raw: np.ndarray) -> np.ndarray:
+    """
+    Fonction de prétraitement par défaut (alias vers preprocess_standard)
+    Gardée pour compatibilité.
+    """
+    return preprocess_standard(raw)
 
 
 def predict_weight(X: np.ndarray, model_path: str = '') -> float:
@@ -217,13 +353,9 @@ def predict_weight(X: np.ndarray, model_path: str = '') -> float:
 class AIOHandler:
     """Handler for AIO (Analog Input/Output) data processing from TCP, relié au frontend via SocketIO."""
 
-    PREDICT_TARGET_FRAMES = 100  # réduit pour tests rapides
+    PREDICT_TARGET_FRAMES = 100
 
     def __init__(self, config, model_paths: dict, socketio):
-        """
-        model_paths : dict { 'LightGBM': 'lightgbm_final.pkl', 'SVR': 'svr_final.pkl' }
-        socketio    : instance flask_socketio.SocketIO utilisée pour pousser les données au frontend
-        """
         self.config = config
         self.logger = logging.getLogger(__name__)
         self.output_dir = "test_sessions"
@@ -231,27 +363,36 @@ class AIOHandler:
 
         # ── Charger tous les modèles ──────────────────────────────
         self.models = {}
+        self.model_types = {}  # Pour savoir quel prétraitement utiliser
+        
         for name, path in model_paths.items():
             try:
                 self.models[name] = joblib.load(path)
-                print(f"  ✅ Modèle chargé : {name} ({path})")
+                
+                # 🔥 Détection automatique : si le nom contient 'fav'
+                if 'fav' in name.lower():
+                    self.model_types[name] = 'fav'
+                    print(f"  ✅ Modèle chargé : {name} ({path}) [type: FAV]")
+                else:
+                    self.model_types[name] = 'standard'
+                    print(f"  ✅ Modèle chargé : {name} ({path}) [type: standard]")
+                    
             except FileNotFoundError:
                 print(f"  ❌ Modèle introuvable : {name} ({path})")
 
-        # If no real models were loaded, provide a dummy fallback model
+        # Fallback dummy model
         if not self.models:
             class DummyModel:
                 def predict(self, X):
-                    # Simple heuristic: predict a constant or based on total pressure
                     try:
                         totals = X[:, 0] if X.shape[1] > 0 else np.zeros(X.shape[0])
-                        # return a per-frame constant prediction (quick test)
                         return np.full((X.shape[0],), 70.0, dtype=float)
                     except Exception:
                         return np.full((X.shape[0],), 70.0, dtype=float)
 
             self.models['Dummy'] = DummyModel()
-            print('  ⚠️ Aucun modèle trouvé — utilisation d\'un DummyModel pour tests (prédictions constantes).')
+            self.model_types['Dummy'] = 'standard'
+            print('  ⚠️ Aucun modèle trouvé — utilisation d\'un DummyModel pour tests.')
 
         # ── Gestion personnes ─────────────────────────────────────
         self.person_counter = 0
@@ -261,25 +402,20 @@ class AIOHandler:
         # ── ODS state machine ─────────────────────────────────────
         self.ods_state = 0
         self.ods_detection_time = None
-        self.delay_duration = 0.5  # délai plus court pour tests
+        self.delay_duration = 0.5
 
-        # ── État de prédiction (déclenché par le bouton frontend) ──
+        # ── État de prédiction ────────────────────────────────────
         self.is_predicting = False
         self.predict_frame_count = 0
         self.predict_buffer = {}
 
         self._new_person()
 
-        # ── Baseline "emptyValues" attendue par global_view.js ─────
         if self.socketio:
             self.socketio.emit('emptyValues', "0;0;0;0;0;0;0;0;0;0")
 
-        # ── Protocol réseau ───────────────────────────────────────
-        #self.aio_protocol = ProtocolFactory.create_instance(config.get('aio_protocol'))
-        #self.aio_protocol.start()
         self.socketio = socketio
 
-    # ──────────────────────────────────────────────────────────────
     def _new_person(self):
         self.person_counter += 1
         self.current_person = f"P{self.person_counter:03d}"
@@ -293,16 +429,9 @@ class AIOHandler:
         print(f"👤 NOUVELLE PERSONNE : {self.current_person}")
         print(f"{'=' * 70}\n")
 
-    # ──────────────────────────────────────────────────────────────
     def start_prediction(self, person_name: str = None):
-        """Appelé quand le frontend clique sur 'Weight Predict'.
-
-        Si `person_name` est fourni, on l'utilise comme `current_person`
-        (utilisateur peut saisir un nom depuis le frontend).
-        """
         if person_name:
             try:
-                # sanitize simple: strip and replace spaces by underscore
                 pn = str(person_name).strip()
                 if pn:
                     self.current_person = pn
@@ -318,17 +447,9 @@ class AIOHandler:
         self.is_predicting = True
         self.predict_frame_count = 0
         self.predict_buffer = {name: [] for name in self.models}
-        print(f"\n🎯 Démarrage prédiction pour {self.current_person} (objectif {self.PREDICT_TARGET_FRAMES} frames) — delay={self.delay_duration}s")
+        print(f"\n🎯 Démarrage prédiction pour {self.current_person} (objectif {self.PREDICT_TARGET_FRAMES} frames)")
 
-    # ──────────────────────────────────────────────────────────────
     def _emit_values(self, raw: np.ndarray, ods_status: int, cushion_sum: float):
-        """
-        Émet les événements attendus par socket_live.js (statut + courbes).
-        - 'ods_update'   : à chaque frame où le siège est vide (ods_status == 0)
-        - 'frame_update' : à chaque frame où le siège est occupé (ods_status == 1),
-                            même en dehors d'une prédiction active, pour faire vivre
-                            le chart "Back + Cushion Sensors" en continu.
-        """
         if not self.socketio:
             return
 
@@ -341,18 +462,12 @@ class AIOHandler:
                 "person_id": self.current_person,
                 "frame_idx": self.frame_count,
                 "sensors": frame,
-                "preds": {},          # pas de prédiction hors mode "start_prediction"
+                "preds": {},
                 "ods": int(ods_status),
                 "cushion_sum": float(cushion_sum),
             })
 
-    # ──────────────────────────────────────────────────────────────
     def on_aio_receive(self, data):
-        """
-        Process incoming AIO data.
-        Pipeline : ODS Detection → émission temps réel (statut + courbes) →
-                   si prédiction active et délai 2s écoulé → accumulation jusqu'à 100 frames → moyenne finale
-        """
         try:
             lines = data.strip().split('\n')
 
@@ -366,13 +481,9 @@ class AIOHandler:
                         print(f"📊 Raw AIO Data Received:")
                         print(f"{json.dumps(self.aio_data['offset'][:10], indent=2)}")
 
-                        # 1. Préparer les données
                         raw = read_seat_data(self.aio_data)
-
-                        # 2. Détecteur ODS
                         ods_status, cushion_sum = detect_ods(raw, cushion_threshold=20000.0)
 
-                        # 3. Toujours émettre vers le frontend (Section 1 statut + Section 2 courbes)
                         self._emit_values(raw, ods_status, cushion_sum)
 
                         if ods_status == 0:
@@ -387,7 +498,6 @@ class AIOHandler:
                             print(f"✅ Siège OCCUPÉ (ODS=1, cushion_sum={cushion_sum:.1f})")
 
                             if self.ods_state == 0:
-                                # Transition vide → occupé : démarrer délai 2s de stabilisation
                                 self.ods_state = 1
                                 self.ods_detection_time = time.time()
 
@@ -395,12 +505,12 @@ class AIOHandler:
                                 elapsed = time.time() - self.ods_detection_time
 
                                 if elapsed >= self.delay_duration and self.is_predicting:
-                                    # ── Délai écoulé ET prédiction active : accumuler ──
                                     self.frame_count += 1
                                     self.predict_frame_count += 1
 
-                                    X = preprocess(raw)
-                                    preds = predict_all_models(X, self.models)
+                                    # Utiliser predict_all_models avec le bon prétraitement
+                                    preds = predict_all_models(raw, self.models)
+                                    
                                     payload = {
                                         "person_id": self.current_person,
                                         "frame_idx": self.predict_frame_count,
@@ -410,7 +520,7 @@ class AIOHandler:
                                         "cushion_sum": float(cushion_sum),
                                     }
                                     print("EMIT FRAME_UPDATE -> FRONTEND")
-                                    # Print per-frame predictions to terminal for debugging
+                                    
                                     try:
                                         print(f"  ▶ Frame {self.predict_frame_count:03d} preds: {preds}")
                                     except Exception:
@@ -437,7 +547,6 @@ class AIOHandler:
                                             'total': self.PREDICT_TARGET_FRAMES
                                         })
 
-                                    # ── 100 frames atteintes : moyenne finale (trim_mean) ──
                                     if self.predict_frame_count >= self.PREDICT_TARGET_FRAMES:
                                         results = []
                                         for model_name, buf in self.predict_buffer.items():
@@ -445,7 +554,6 @@ class AIOHandler:
                                                 final_val = round(trim_mean(buf, proportiontocut=0.1), 1)
                                                 results.append({'model': model_name, 'predicted': final_val})
 
-                                        # If no buffered results, try fallback to last-frame preds (robustness)
                                         if not results:
                                             try:
                                                 fallback = []
@@ -455,8 +563,6 @@ class AIOHandler:
                                                 if fallback:
                                                     results = fallback
                                                     print('  ⚠️ Fallback used: using last-frame predictions as final results')
-                                                else:
-                                                    print('  ⚠️ No buffered results AND no last-frame preds available')
                                             except Exception as e:
                                                 print('  ⚠️ Error while building fallback results:', e)
 
@@ -471,7 +577,6 @@ class AIOHandler:
                                             debug_counts = {k: len(v) for k, v in self.predict_buffer.items()}
                                             self.socketio.emit('predict_result', {'results': results, 'debug_counts': debug_counts})
 
-                                        # Log final results to terminal
                                         print('\nFINAL PREDICTION RESULTS:')
                                         for r in results:
                                             print(f"   - {r['model']}: {r['predicted']} kg")
@@ -482,7 +587,7 @@ class AIOHandler:
                                         self._new_person()
 
                         print(f"{'=' * 70}\n")
-                        time.sleep(0.05)  # cadence entre frames
+                        time.sleep(0.05)
 
                     except json.JSONDecodeError as line_error:
                         print(f"Error parsing individual line: {line}, error: {line_error}")

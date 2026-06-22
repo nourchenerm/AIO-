@@ -3,10 +3,10 @@ import json
 import pandas as pd
 import time
 
-HOST = "0.0.0.0"
+HOST = "127.0.0.1"
 PORT = 5001
 
-df = pd.read_csv("data/amine_a.csv")
+df = pd.read_csv("data/marwa_a.csv")
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
