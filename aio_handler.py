@@ -47,7 +47,7 @@ def _gini(row):
 # ══════════════════════════════════════════════════════════════
 
 # Modèles qui utilisent le prétraitement FAV (avec toutes les features)
-FAV_MODELS = ['fav', 'lightgbm_final_fav', 'fav_model', 'LightGBM_fav']  # ← AJOUTER 'fav'
+FAV_MODELS = ['fav', 'lightgbm_final_fav', 'fav_model', 'LightGBM_fav']  
 
 # Modèles qui utilisent le prétraitement standard (sans features additionnelles)
 STANDARD_MODELS = ['weight_SVR', 'SVR_lt120', 'weight_pred', 'LightGBM', 'SVR', 'Dummy']
@@ -380,19 +380,7 @@ class AIOHandler:
             except FileNotFoundError:
                 print(f"  ❌ Modèle introuvable : {name} ({path})")
 
-        # Fallback dummy model
-        if not self.models:
-            class DummyModel:
-                def predict(self, X):
-                    try:
-                        totals = X[:, 0] if X.shape[1] > 0 else np.zeros(X.shape[0])
-                        return np.full((X.shape[0],), 70.0, dtype=float)
-                    except Exception:
-                        return np.full((X.shape[0],), 70.0, dtype=float)
-
-            self.models['Dummy'] = DummyModel()
-            self.model_types['Dummy'] = 'standard'
-            print('  ⚠️ Aucun modèle trouvé — utilisation d\'un DummyModel pour tests.')
+       
 
         # ── Gestion personnes ─────────────────────────────────────
         self.person_counter = 0

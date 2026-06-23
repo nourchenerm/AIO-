@@ -566,7 +566,11 @@
                             </span>
                             <span class="leg-item">
                                 <span class="leg-swatch" style="background:#e8a020;"></span>
-                                Dataset mean
+                                Nominal position (04_df_features)
+                            </span>
+                            <span class="leg-item">
+                                <span class="leg-swatch" style="background:#2ecc71;"></span>
+                                All position (04_df_features_all)
                             </span>
                         </div>
                     </div>
@@ -614,9 +618,9 @@
                     <button class="btn-weight-predict" id="btnWeightPredict" onclick="runWeightPredict()">
                         ⚖ Weight Predict
                     </button>
-                    <button class="btn-ocs-predict" id="btnOcsPredict" onclick="runOcsPredict()">
+ <!--                    <button class="btn-ocs-predict" id="btnOcsPredict" onclick="runOcsPredict()">
                         🔎 OCS Predict
-                    </button>
+                    </button> -->
                 </div>
 
                 <!-- Spinner chargement -->
@@ -696,14 +700,18 @@
         data: {
             labels: analysisLabels,
             datasets: [
-                                { label: 'Real weight', data: Array(10).fill(null),
-                                    borderColor: '#1a7abf', backgroundColor: 'transparent',
-                                    borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: '#1a7abf',
-                                    fill: false, tension: 0.3 },
-                                { label: 'Dataset mean', data: Array(10).fill(null),
-                                    borderColor: '#e8a020', backgroundColor: 'transparent',
-                                    borderWidth: 2, borderDash: [6,4], pointRadius: 3, pointStyle: 'rect', pointBackgroundColor: '#e8a020',
-                                    fill: false, tension: 0.3 }
+                { label: 'Real weight', data: Array(10).fill(null),
+                    borderColor: '#1a7abf', backgroundColor: 'transparent',
+                    borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: '#1a7abf',
+                    fill: false, tension: 0.3 },
+                { label: 'Nominal position', data: Array(10).fill(null),
+                    borderColor: '#e8a020', backgroundColor: 'transparent',
+                    borderWidth: 2, borderDash: [6,4], pointRadius: 3, pointStyle: 'rect', pointBackgroundColor: '#e8a020',
+                    fill: false, tension: 0.3 },
+                { label: 'All position', data: Array(10).fill(null),
+                    borderColor: '#2ecc71', backgroundColor: 'transparent',
+                    borderWidth: 2, borderDash: [2,2], pointRadius: 3, pointStyle: 'triangle', pointBackgroundColor: '#2ecc71',
+                    fill: false, tension: 0.3 }
             ]
         },
         options: {
@@ -738,15 +746,15 @@
     });
 
     // Simpler update: provide arrays of length 10 for realArr and meanArr
-    window.updateAnalysisChart = function(realArr, meanArr) {
+    window.updateAnalysisChart = function(realArr, nominalArr, allPosArr) {
         var c = window.weightAnalysisChart;
         var labels = realArr.map(function(_,i){ return 'S'+(i+1); });
         c.data.labels = labels;
         c.data.datasets[0].data = realArr.map(function(v){ return v; });
-        c.data.datasets[1].data = meanArr.map(function(v){ return v; });
+        c.data.datasets[1].data = (nominalArr || []).map(function(v){ return v; });
+        c.data.datasets[2].data = (allPosArr || []).map(function(v){ return v; });
         c.update();
     };
-
     function runOcsPredict() {
         var realW = parseFloat(document.getElementById('realWeightInput').value);
         if (!realW || realW <= 0) {

@@ -121,14 +121,8 @@ def predict_ocs():
 
 @app.route('/api/dataset_zone_mean', methods=['GET'])
 def dataset_zone_mean():
-    """
-    Retourne la moyenne des capteurs pour les données dont le poids est dans [weight - margin, weight + margin].
-    Utilisé par le frontend pour afficher la comparaison "Real weight vs Dataset mean".
-    """
     try:
         w = float(request.args.get('weight', None))
-        if w is None:
-            return jsonify({"error": "weight parameter is required"}), 400
     except Exception:
         return jsonify({"error": "invalid weight"}), 400
 
@@ -140,26 +134,19 @@ def dataset_zone_mean():
     person = request.args.get('person', None)
     csv_name = request.args.get('csv', None)
 
-    # Répertoire des données
     data_dir = os.path.join(os.path.dirname(__file__), 'data')
-    
-    # Colonnes des capteurs
-    sensor_cols = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'C10']
-    sensor_cols_offset = ['C1_offset', 'C2_offset', 'C3_offset', 'C4_offset', 
-                          'C5_offset', 'C6_offset', 'C7_offset', 'C8_offset', 
-                          'C9_offset', 'C10_offset']
-    
+    sensor_cols = ['C1','C2','C3','C4','C5','C6','C7','C8','C9','C10']
     sums = [0.0] * 10
     count = 0
+    found_weights = []   # ← AJOUT
+
     low = w - margin
     high = w + margin
 
     if not os.path.isdir(data_dir):
-        return jsonify({"error": f"data directory '{data_dir}' not found"}), 500
+        return jsonify({"error": "data directory not found"}), 500
 
-    # Construire la liste des fichiers à scanner
     files_to_scan = []
-    
     if csv_name:
         safe_name = os.path.basename(csv_name)
         path = os.path.join(data_dir, safe_name)
@@ -168,120 +155,77 @@ def dataset_zone_mean():
         else:
             return jsonify({"error": f"csv '{safe_name}' not found in data directory"}), 400
     else:
-        # Par défaut, utiliser le fichier principal de features
-        default_files = ['02_df_preprocessing.csv', '04_df_feature.csv', '05_df_feature_final.csv']
-        for f in default_files:
-            path = os.path.join(data_dir, f)
-            if os.path.exists(path):
-                files_to_scan.append(path)
-                break
-        
-        # Si aucun des fichiers par défaut n'existe, scanner tous les CSV
-        if not files_to_scan:
-            for file in os.listdir(data_dir):
-                if file.endswith('.csv'):
-                    files_to_scan.append(os.path.join(data_dir, file))
-
-    print(f"📂 Scanning {len(files_to_scan)} CSV files")
+        default_csv = '04_df_feature.csv'
+        default_path = os.path.join(data_dir, default_csv)
+        if os.path.exists(default_path):
+            files_to_scan = [default_path]
+        else:
+            return jsonify({"error": f"default csv '{default_csv}' not found in data directory"}), 400
 
     for path in files_to_scan:
         fname = os.path.basename(path)
-        print(f"  📄 Reading: {fname}")
-        
         try:
-            df = pd.read_csv(path)
-            
-            # Déterminer quelles colonnes de capteurs sont présentes
-            use_offset = False
-            if all(col in df.columns for col in sensor_cols_offset):
-                cols = sensor_cols_offset
-                use_offset = True
-            elif all(col in df.columns for col in sensor_cols):
-                cols = sensor_cols
-            else:
-                print(f"    ⚠️ No sensor columns found in {fname}, skipping")
-                continue
-            
-            # Déterminer la colonne de poids
-            weight_col = None
-            for possible_col in ['weight_gt', 'Weight', 'weight', 'poids', 'Poids', 'Real_weight']:
-                if possible_col in df.columns:
-                    weight_col = possible_col
-                    break
-            
-            if weight_col is None:
-                print(f"    ⚠️ No weight column found in {fname}, skipping")
-                continue
-            
-            # Filtrer par poids
-            df_filtered = df[
-                (df[weight_col] >= low) & 
-                (df[weight_col] <= high)
-            ].copy()
-            
-            # Filtrer par personne si spécifié
-            if person and len(df_filtered) > 0:
-                person_cols = ['ID', 'person', 'name', 'person_name', 'Person', 'Name', 'person_id']
-                person_col_found = None
-                for pc in person_cols:
-                    if pc in df.columns:
-                        person_col_found = pc
-                        break
-                
-                if person_col_found:
-                    df_filtered = df_filtered[df_filtered[person_col_found].astype(str).str.lower() == person.lower()]
-            
-            if len(df_filtered) == 0:
-                print(f"    ℹ️ No rows in weight range [{low}, {high}] in {fname}")
-                continue
-            
-            # Accumuler les valeurs des capteurs
-            for _, row in df_filtered.iterrows():
-                vals = []
-                ok = True
-                for col in cols:
+            with open(path, 'r') as fh:
+                reader = csv.DictReader(fh)
+                fn = reader.fieldnames or []
+                offset_cols = [f'C{i}_offset' for i in range(1, 11)]
+                simple_cols = ['C1','C2','C3','C4','C5','C6','C7','C8','C9','C10']
+                if all(c in fn for c in offset_cols):
+                    sensor_cols_file = offset_cols
+                elif all(c in fn for c in simple_cols):
+                    sensor_cols_file = simple_cols
+                else:
+                    sensor_cols_file = [c for c in offset_cols if c in fn]
+                    if len(sensor_cols_file) != 10:
+                        sensor_cols_file = [c for c in simple_cols if c in fn]
+
+                for row in reader:
                     try:
-                        v = float(row[col])
+                        wt = float(row.get('Weight') or row.get('Weight') or 0)
+                    except Exception:
+                        continue
+                    if wt < low or wt > high:
+                        continue
+
+                    if person:
+                        person_cols = ['ID', 'person', 'name', 'person_name']
+                        row_person = None
+                        for pc in person_cols:
+                            v = row.get(pc)
+                            if v:
+                                row_person = str(v).strip()
+                                break
+                        if row_person is None:
+                            if person.lower() in fname.lower():
+                                row_person = person
+                        if row_person is None or row_person.lower() != person.strip().lower():
+                            continue
+
+                    ok = True
+                    vals = []
+                    cols_to_use = sensor_cols_file if sensor_cols_file and len(sensor_cols_file) == 10 else sensor_cols
+                    for i, col in enumerate(cols_to_use):
+                        try:
+                            v = float(row.get(col, 0))
+                        except Exception:
+                            ok = False
+                            break
                         vals.append(v)
-                    except (ValueError, TypeError):
-                        ok = False
-                        break
-                
-                if ok:
+                    if not ok:
+                        continue
                     for i, v in enumerate(vals):
                         sums[i] += v
                     count += 1
-            
-            print(f"    ✅ Added {len(df_filtered)} rows from {fname}")
-            
+                    found_weights.append(wt)   # ← AJOUT
         except Exception as e:
-            print(f"    ❌ Error reading {fname}: {e}")
-            import traceback
-            traceback.print_exc()
-            continue
+            print(f"Error reading {path}: {e}")
 
     if count == 0:
-        return jsonify({
-            "mean": [0] * 10,
-            "n": 0,
-            "message": f"No data found for weight {w} ± {margin} kg"
-        }), 200
+        return jsonify({"mean": None, "n": 0, "weights": []})
 
-    # Calculer les moyennes
     means = [s / count for s in sums]
-    
-    # Normaliser comme attendu par le frontend (division par 1000)
     means_scaled = [m / 1000.0 for m in means]
-    
-    print(f"✅ Found {count} samples")
-    print(f"   Mean values: {[round(m, 2) for m in means_scaled]}")
-    
-    return jsonify({
-        "mean": means_scaled,
-        "n": count,
-        "weight_range": [low, high]
-    })
-
+    return jsonify({"mean": means_scaled, "n": count, "weights": found_weights})   # ← AJOUT weights
 if __name__ == "__main__":
     # Charger config TCP
     with open("config.yaml", "r") as f:

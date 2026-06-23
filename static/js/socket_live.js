@@ -51,54 +51,55 @@
          cushion_sum: 48320
        }
     ──────────────────────────────────────────────────────────────────────── */
-    socket.on('frame_update', function (d) {
+   socket.on('frame_update', function (d) {
+    console.log('🔴 frame_update reçu:', d.sensors);
 
-        /* 1. Courbe capteurs — préférence: chart unique `chartSensors` affichant C1..C10 */
-        if (window.chartSensors && window.chartSensors.data && window.chartSensors.data.datasets.length >= 10) {
-            for (let i = 0; i < 10; i++) {
-                const ds = window.chartSensors.data.datasets[i];
-                if (!ds) continue;
-                ds.data.push(Math.abs(d.sensors[i] / 1000));
-                if (ds.data.length > MAX_PTS) ds.data.shift();
-            }
-            window.chartSensors.data.labels.push('');
-            if (window.chartSensors.data.labels.length > MAX_PTS) window.chartSensors.data.labels.shift();
-            window.chartSensors.update('none');
+    // ── Attendre que le mapping soit prêt ──────────────────────
+    if (!window.chartSensors || !window.chartSensors.data ||
+        !window.OrderSensorCushion || !window.OrderSensorBack ||
+        Object.keys(window.OrderSensorBack).length === 0) {
+        console.warn('frame_update ignoré')
+        return;
+    }
 
-        } else if (window.backSensorsChart) {
-            /* fallback: only update backSensorsChart (C7..C10) if present */
-            const bc = window.backSensorsChart;
-            /* datasets[0]=C7, [1]=C8, [2]=C9, [3]=C10 */
-            const backIdx = [6, 7, 8, 9];
-            backIdx.forEach(function (si, di) {
-                bc.data.datasets[di].data.push(d.sensors[si]);
-                if (bc.data.datasets[di].data.length > MAX_PTS)
-                    bc.data.datasets[di].data.shift();
-            });
-            bc.data.labels.push('');
-            if (bc.data.labels.length > MAX_PTS) bc.data.labels.shift();
-            bc.update('none');
+    const MAX_PTS = 100;
+
+    d.sensors.forEach(function(rawValue, dataIndex) {
+        const sensorId = dataIndex + 1;  // index 0..9 → sensorId 1..10
+
+        let dsIndex;
+        if (typeof window.OrderSensorCushion[sensorId] !== 'undefined') {
+            dsIndex = window.OrderSensorCushion[sensorId];
+        } else if (typeof window.OrderSensorBack[sensorId] !== 'undefined') {
+            dsIndex = window.OrderSensorBack[sensorId];
+        } else {
+            return;  // capteur non mappé
         }
 
-        /* 2. Analysis collection: if a prediction is ongoing, collect sensor frames
-           We'll aggregate these on `predict_result` to compute per-sensor means. */
-        if (window.__predict_collecting) {
-            // push raw sensors (not scaled) for accuracy
-            window.__predict_sensor_buffer.push(d.sensors.slice(0, 10));
-            // cap buffer length
-            if (window.__predict_sensor_buffer.length > 1000) {
-                window.__predict_sensor_buffer.shift();
-            }
-        }
+        const ds = window.chartSensors.data.datasets[dsIndex];
+        if (!ds) return;
 
-        /* 3. Statut ODS */
-        _setOds(1, d.cushion_sum);
-
-        /* 4. Compteur frame */
-        const fc = document.querySelector('.frame-counter');
-        if (fc) fc.textContent = 'Frame #' + d.frame_idx;
+        ds.data.push(Math.abs(rawValue / 1000));
+        if (ds.data.length > MAX_PTS) ds.data.shift();
     });
 
+    window.chartSensors.data.labels.push('');
+    if (window.chartSensors.data.labels.length > MAX_PTS)
+        window.chartSensors.data.labels.shift();
+
+    window.chartSensors.update('none');
+
+    _setOds(1, d.cushion_sum);
+
+    const fc = document.querySelector('.frame-counter');
+    if (fc) fc.textContent = 'Frame #' + d.frame_idx;
+
+    if (window.__predict_collecting) {
+        window.__predict_sensor_buffer.push(d.sensors.slice(0, 10));
+        if (window.__predict_sensor_buffer.length > 1000)
+            window.__predict_sensor_buffer.shift();
+    }
+});
     /* ─── ods_update : siège vide ────────────────────────────────────── */
     socket.on('ods_update', function (d) {
         _setOds(0, d.cushion_sum);
@@ -164,30 +165,46 @@
 
             // Fetch dataset zone mean from backend using the real weight (if provided)
             (async function() {
-                let datasetMeanSensors = Array(10).fill(DATASET_MEAN);
-                try {
-                    const realW = window.currentRealWeight || null;
-                    if (realW) {
-                        const resp = await fetch('/api/dataset_zone_mean?weight=' + encodeURIComponent(realW) + '&margin=5');
-                        if (resp.ok) {
-                            const body = await resp.json();
-                            if (body && body.mean && Array.isArray(body.mean) && body.mean.length === 10) {
-                                datasetMeanSensors = body.mean;
-                            }
-                        }
-                    } else if (window.meanD && window.meanD.length === 10) {
-                        datasetMeanSensors = window.meanD;
-                    }
-                } catch (e) {
-                    console.warn('Failed to fetch dataset zone mean:', e);
-                }
+    let nominalMeanSensors = Array(10).fill(DATASET_MEAN);
+    let allPosMeanSensors  = Array(10).fill(DATASET_MEAN);
+    try {
+        const realW = window.currentRealWeight || null;
+        const margin = 5;
+        if (realW) {
+            const [respNominal, respAll] = await Promise.all([
+                fetch('/api/dataset_zone_mean?weight=' + encodeURIComponent(realW) + '&margin=' + margin + '&csv=04_df_feature.csv'),
+                fetch('/api/dataset_zone_mean?weight=' + encodeURIComponent(realW) + '&margin=' + margin + '&csv=04_df_feature_all.csv')
+            ]);
 
-                if (window.updateAnalysisChart) window.updateAnalysisChart(meanSensors, datasetMeanSensors);
-            })();
-        } catch (e) {
+            if (respNominal.ok) {
+    const body = await respNominal.json();
+    const uniqueWeights = [...new Set(body.weights)];
+    console.log(`📊 [Nominal] ${body.n} personne(s) dans [${realW - margin}, ${realW + margin}] kg — poids distincts :`, uniqueWeights);
+    if (body && body.mean && Array.isArray(body.mean) && body.mean.length === 10) {
+        nominalMeanSensors = body.mean;
+    }
+}
+if (respAll.ok) {
+    const body = await respAll.json();
+    const uniqueWeights = [...new Set(body.weights)];
+    console.log(`📊 [All position] ${body.n} personne(s) dans [${realW - margin}, ${realW + margin}] kg — poids distincts :`, uniqueWeights);
+    if (body && body.mean && Array.isArray(body.mean) && body.mean.length === 10) {
+        allPosMeanSensors = body.mean;
+    }
+}} else if (window.meanD && window.meanD.length === 10) {
+            nominalMeanSensors = window.meanD;
+            allPosMeanSensors  = window.meanD;
+        }
+    } catch (e) {
+        console.warn('Failed to fetch dataset zone means:', e);
+    }
+
+    if (window.updateAnalysisChart) window.updateAnalysisChart(meanSensors, nominalMeanSensors, allPosMeanSensors);
+})();
+} catch (e) {
             console.warn('Error building analysis chart from predict_result:', e);
         }
-});
+    });
     socket.on('predict_progress', function(data) {
 
         console.log(
